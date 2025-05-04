@@ -1,0 +1,5 @@
+2025-05-05 00:33:59,772 [INFO] Logger initialized successfully.
+2025-05-05 00:33:59,799 [INFO] Loaded database test_db
+2025-05-05 00:33:59,801 [INFO] Saved database test_db
+2025-05-05 00:33:59,801 [INFO] Created collection test_coll in test_db
+2025-05-05 00:33:59,805 [INFO] Loaded database test_db
