@@ -1,15 +1,15 @@
 import logging
 import os
 from datetime import datetime
-from src.config import LOG_ROOT
 
 class Logger:
     _instance = None
 
     def __new__(cls):
         if cls._instance is None:
-            os.makedirs(LOG_ROOT, exist_ok=True)
-            log_file = os.path.join(LOG_ROOT, f"{datetime.now():%Y%m%d_%H%M%S}.log")
+            log_dir = os.getcwd()  # Use the current working directory
+            os.makedirs(log_dir, exist_ok=True)
+            log_file = os.path.join(log_dir+"\\logs", f"{datetime.now():%Y%m%d_%H%M%S}.log")
             logging.basicConfig(
                 filename=log_file,
                 level=logging.INFO,
