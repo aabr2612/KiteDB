@@ -3,3 +3,5 @@ logs/
 db/
 *.logs
 *.db
+testing.py
+server.py

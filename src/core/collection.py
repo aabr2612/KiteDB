@@ -1,7 +1,7 @@
 from threading import Lock
 from typing import Dict, List, Any
-from src.logging.logger import logger
-from src.core.exceptions import ValidationError
+from src.config import logger
+from src.core.exceptions import ValidationError, KiteDBError
 from src.query.query_parser import QueryParser
 
 class Collection:
@@ -10,23 +10,57 @@ class Collection:
         self.name = name
         self.lock = Lock()
 
-    def insert(self, doc: Dict[str, Any], apply_transaction: bool = False) -> Any:
+    def _map_type(self, type_name: str) -> type:
+        """Map string type names to Python types."""
+        type_map = {
+            "str": str,
+            "int": int,
+            "float": float,
+            "bool": bool,
+            "list": list,
+            "dict": dict
+        }
+        if type_name not in type_map:
+            raise ValidationError(f"Unknown type in schema: {type_name}")
+        return type_map[type_name]
+
+    def validate_schema(self, doc: Dict[str, Any]):
+        schema = self.db.schemas.get(self.name, {})
+        if not schema:
+            return
+        required_fields = schema.get('fields', {})
+        for field, type_name in required_fields.items():
+            if field not in doc:
+                raise ValidationError(f"Missing required field: {field}")
+            field_type = self._map_type(type_name)
+            if not isinstance(doc[field], field_type):
+                raise ValidationError(f"Field {field} must be of type {type_name}, got {type(doc[field]).__name__}")
+        for field in doc:
+            if field not in required_fields:
+                raise ValidationError(f"Unexpected field in document: {field}")
+
+    def insert(self, docs: Any, apply_transaction: bool = False) -> Any:
         with self.lock:
-            if not isinstance(doc, dict):
-                raise ValidationError("Document must be a dictionary")
+            documents = docs if isinstance(docs, list) else [docs]
+            for doc in documents:
+                if not isinstance(doc, dict):
+                    raise ValidationError("Document must be a dictionary")
+                self.validate_schema(doc)
+            
             try:
                 if self.db.transaction and self.db.transaction.active and not apply_transaction:
-                    self.db.transaction.log({'collection': self.name, 'action': 'insert', 'params': [doc]})
-                    logger.debug(f"Logged insert in '{self.name}': {doc}")
+                    self.db.transaction.log({'collection': self.name, 'action': 'add', 'params': [documents]})
+                    logger.debug(f"Logged insert in '{self.name}': {len(documents)} documents")
                     return "logged"
                 else:
-                    docs = self.db.collections[self.name]
-                    doc_id = len(docs)
-                    docs.append(doc)
-                    self.db.indexes[self.name].add_bulk(doc, doc_id)
+                    docs_list = self.db.collections[self.name]
+                    start_id = len(docs_list)
+                    for i, doc in enumerate(documents):
+                        docs_list.append(doc)
+                        self.db.indexes[self.name].add_bulk(doc, start_id + i)
                     self.db.save()
-                    logger.info(f"Inserted into '{self.name}': {doc} with ID {doc_id}")
-                    return doc_id
+                    logger.info(f"Inserted {len(documents)} documents into '{self.name}'")
+                    return list(range(start_id, start_id + len(documents)))
             except Exception as e:
                 logger.error(f"Insert failed in '{self.name}': {e}")
                 raise KiteDBError(f"Insert operation failed: {e}")
@@ -35,6 +69,20 @@ class Collection:
         with self.lock:
             try:
                 results = []
+                if not query:
+                    for doc in self.db.collections[self.name]:
+                        results.append(doc.copy())
+                    logger.info(f"Find in '{self.name}' with empty query returned {len(results)} docs")
+                    return results
+                if len(query) == 1 and not any(k.startswith('$') for k in query.keys()):
+                    field = next(iter(query))
+                    value = query[field]
+                    if isinstance(value, dict) and len(value) == 1 and '$eq' in value:
+                        doc_ids = self.db.indexes[self.name].query(field, value['$eq'])
+                        for doc_id in doc_ids:
+                            results.append(self.db.collections[self.name][doc_id].copy())
+                        logger.info(f"Find in '{self.name}' with indexed query {query} returned {len(results)} docs")
+                        return results
                 for doc in self.db.collections[self.name]:
                     if self._match(doc, query):
                         results.append(doc.copy())
@@ -44,14 +92,18 @@ class Collection:
                 logger.error(f"Find failed in '{self.name}': {e}")
                 raise KiteDBError(f"Find operation failed: {e}")
 
-    def update(self, query: Dict[str, Any], update: Dict[str, Any], apply_transaction: bool = False) -> Any:
+    def update(self, query: Dict[str, Any], updates: Any, apply_transaction: bool = False) -> Any:
         with self.lock:
-            if not isinstance(update, dict):
-                raise ValidationError("Update must be a dictionary")
+            update_list = updates if isinstance(updates, list) else [updates]
+            for update in update_list:
+                if not isinstance(update, dict):
+                    raise ValidationError("Update must be a dictionary")
+                self.validate_schema(update)
+            
             try:
                 if self.db.transaction and self.db.transaction.active and not apply_transaction:
-                    self.db.transaction.log({'collection': self.name, 'action': 'update', 'params': [query, update]})
-                    logger.debug(f"Logged update in '{self.name}': query={query}, update={update}")
+                    self.db.transaction.log({'collection': self.name, 'action': 'update', 'params': [query, update_list]})
+                    logger.debug(f"Logged update in '{self.name}': query={query}, updates={len(update_list)}")
                     return "logged"
                 else:
                     count = 0
@@ -59,7 +111,8 @@ class Collection:
                     for idx, doc in enumerate(docs):
                         if self._match(doc, query):
                             old = doc.copy()
-                            doc.update(update)
+                            for update in update_list:
+                                doc.update(update)
                             self.db.indexes[self.name].reindex(old, doc, idx)
                             count += 1
                     if count:

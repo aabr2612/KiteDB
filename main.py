@@ -1,17 +1,19 @@
-import json
 import os
-from typing import Any, Dict
+import json
+import getpass
 from src.core.database import Database
 from src.query.query_parser import QueryParser
-from src.logging.logger import logger
+from src.config import logger
 from src.core.exceptions import ValidationError, KiteDBError, TransactionError
-from src.config import DATA_ROOT  # Import DATA_ROOT for listing databases
+from src.config import config
 
 HELP_MESSAGE = """
 Available commands:
-  use <database_name>       - Select a database to use
-  show databases           - List all databases
-  create <collection_name>  - Create a new collection in the current database
+  login <username>          - Authenticate user
+  use <database_name>       - Select a database
+  list                      - List all databases
+  create <collection_name> [schema] - Create a new collection
+  delete <collection_name>  - Delete a collection
   begin                     - Begin a transaction
   commit                    - Commit the current transaction
   rollback                  - Rollback the current transaction
@@ -19,32 +21,31 @@ Available commands:
   help                      - Show this help message
 
 Collection operations:
-  <collection>.insert{<document>}       - Insert a document into the collection
-  <collection>.find{<query>}            - Find documents matching the query
-  <collection>.update{<query> <update>} - Update documents matching the query
-  <collection>.delete{<query>}          - Delete documents matching the query
+  <collection>.add{<document> | [<document>, ...]} - Insert one or more documents
+  <collection>.find{<query>}                         - Find documents
+  <collection>.update{<query>, <update> | [<update>, ...]} - Update documents with query and update(s)
+  <collection>.delete{<query>}                       - Delete documents matching query
 
 Supported query operators:
   $eq, $ne, $gt, $gte, $lt, $lte - Comparison operators
-  $and, $or                      - Logical operators
+  $and, $or, $not               - Logical operators
 
-Examples:
-  use mydb
-  create users
-  users.insert{"name": "ALI", "age": 25}
-  users.find{"age": {"$gte": 18}}
-  users.update{"name": "ALI"} {"age": 26}
-  users.delete{"name": "ALI"}
+Note: For update, use comma-separated query and update (e.g., users.update{{"name": {"$eq": "Alice"}}, {"age": 31}}).
 """
 
 class KiteDBConsole:
     def __init__(self):
         self.current_db = None
         self.running = True
+        self.authenticated = False
+        self.users = {"admin": "password123"}
 
     def run(self):
-        print("Welcome to KiteDB v1.0")
+        print("Welcome to KiteDB v2.0")
         while self.running:
+            if not self.authenticated:
+                self.handle_login()
+                continue
             prompt = f"kiteDB ({self.current_db.name}) > " if self.current_db else "kiteDB > "
             try:
                 cmd = input(prompt).strip()
@@ -54,13 +55,27 @@ class KiteDBConsole:
             except EOFError:
                 print("\nExiting KiteDB...")
                 break
+            except KeyboardInterrupt:
+                print("\nOperation cancelled")
+                continue
             except Exception as e:
                 print(f"Unexpected error: {e}")
                 logger.error(f"Console error: {e}")
 
+    def handle_login(self):
+        username = input("Username: ").strip()
+        password = getpass.getpass("Password: ")
+        if username in self.users and self.users[username] == password:
+            self.authenticated = True
+            print("Login successful")
+            logger.info(f"User '{username}' logged in")
+        else:
+            print("Invalid credentials")
+            logger.warning(f"Failed login attempt for '{username}'")
+
     def handle_command(self, cmd: str):
         parts = cmd.split(maxsplit=1)
-        command = parts[0].lower()  # Make command case-insensitive
+        command = parts[0].lower()
         arg = parts[1] if len(parts) > 1 else ''
         if command in self.DB_COMMANDS:
             self.DB_COMMANDS[command](self, arg)
@@ -82,48 +97,65 @@ class KiteDBConsole:
             print(f"Error: {e}")
             logger.error(f"Use database failed: {e}")
 
-    def handle_show(self, arg: str):
-        arg = arg.lower().strip()
-        if arg == 'databases':
-            try:
-                databases = []
-                for entry in os.listdir(DATA_ROOT):
-                    path = os.path.join(DATA_ROOT, entry)
-                    if os.path.isdir(path):
-                        try:
-                            chunks = [f for f in os.listdir(path) if f.startswith('chunk_') and f.endswith('.json')]
-                            if chunks:
-                                databases.append(entry)
-                        except Exception as e:
-                            logger.warning(f"Error checking directory '{path}': {e}")
-                databases.sort()
-                if databases:
-                    print("Databases:")
-                    for db in databases:
-                        print(f"  {db}")
-                else:
-                    print("No databases found")
-            except Exception as e:
-                print(f"Error listing databases: {e}")
-                logger.error(f"Error listing databases: {e}")
-        else:
-            print(f"Unknown show command: {arg}")
+    def handle_list(self, arg: str):
+        try:
+            databases = []
+            data_root = config.get('storage.data_root')
+            for entry in os.listdir(data_root):
+                path = os.path.join(data_root, entry)
+                if os.path.isdir(path):
+                    databases.append(entry)
+            databases.sort()
+            if databases:
+                print("Databases:")
+                for db in databases:
+                    print(f"  {db}")
+            else:
+                print("No databases found")
+        except Exception as e:
+            print(f"Error listing databases: {e}")
+            logger.error(f"Error listing databases: {e}")
 
     def handle_create(self, arg: str):
         if not self.current_db:
             print("Select a database first: use <name>")
             return
-        collection_name = arg.strip()
+        parts = arg.strip().split(maxsplit=1)
+        collection_name = parts[0]
+        schema = parts[1] if len(parts) > 1 else None
         if not collection_name:
-            print("Usage: create <collection_name>")
+            print("Usage: create <collection_name> [schema]")
             return
         try:
-            self.current_db.create_collection(collection_name)
+            schema_dict = json.loads(schema) if schema else None
+            self.current_db.create_collection(collection_name, schema_dict)
             print(f"Collection '{collection_name}' created")
             logger.info(f"Created collection '{collection_name}' in '{self.current_db.name}'")
         except KiteDBError as e:
             print(f"Error: {e}")
             logger.error(f"Create collection failed: {e}")
+        except json.JSONDecodeError as e:
+            print(f"Invalid schema JSON: {e}")
+            logger.error(f"Invalid schema JSON: {e}")
+
+    def handle_delete(self, arg: str):
+        if not self.current_db:
+            print("Select a database first: use <name>")
+            return
+        collection_name = arg.strip()
+        if not collection_name:
+            print("Usage: delete <collection_name>")
+            return
+        try:
+            result = self.current_db.drop_collection(collection_name)
+            if result == "logged":
+                print("Collection deletion logged")
+            else:
+                print(f"Collection '{collection_name}' deleted")
+            logger.info(f"Deleted collection '{collection_name}' from '{self.current_db.name}'")
+        except KiteDBError as e:
+            print(f"Error: {e}")
+            logger.error(f"Delete collection failed: {e}")
 
     def handle_begin(self, arg: str):
         if not self.current_db:
@@ -186,7 +218,7 @@ class KiteDBConsole:
             query = parsed.get('query', {})
             data = parsed.get('data', {})
 
-            if op not in ['insert', 'find', 'update', 'delete']:
+            if op not in ['add', 'find', 'update', 'delete']:
                 print(f"Unknown operation: {op}")
                 logger.warning(f"Unknown operation attempted: {op}")
                 return
@@ -194,12 +226,15 @@ class KiteDBConsole:
             coll = self.current_db.get_collection(collection_name)
             logger.info(f"Executing {op} on '{collection_name}': query={query}, data={data}")
 
-            if op == 'insert':
+            if op == 'add':
                 res = coll.insert(data)
                 if res == "logged":
                     print("Insertion logged")
                 else:
-                    print(f"Inserted document with ID: {res}")
+                    if isinstance(res, list):
+                        print(f"Inserted {len(res)} documents with IDs: {res}")
+                    else:
+                        print(f"Inserted document with ID: {res}")
             elif op == 'find':
                 res = coll.find(query)
                 if not res:
@@ -231,9 +266,11 @@ class KiteDBConsole:
             logger.error(f"Unexpected error in command '{cmd}': {e}")
 
     DB_COMMANDS = {
+        'login': handle_login,
         'use': handle_use,
-        'show': handle_show,  # Added show command
+        'list': handle_list,
         'create': handle_create,
+        'delete': handle_delete,
         'begin': handle_begin,
         'commit': handle_commit,
         'rollback': handle_rollback,

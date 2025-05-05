@@ -1,12 +1,13 @@
 import json
 import re
-from typing import Any, Dict
+from typing import Any, Dict, Tuple
 from src.core.exceptions import ValidationError
 
 class QueryParser:
     @staticmethod
     def parse(command: str) -> Dict[str, Any]:
-        # Match the command format: <collection>.<operation>{<parameters>}
+        if not command or not command.strip():
+            raise ValidationError("Command cannot be empty")
         match = re.match(r'^(?P<collection>\w+)\.(?P<operation>\w+)\s*\{(?P<parameters>.*)\}$', command.strip())
         if not match:
             raise ValidationError("Command format should be <collection>.<operation>{parameters}")
@@ -16,21 +17,20 @@ class QueryParser:
         payload = match.group('parameters').strip()
         
         try:
-            if op == 'insert':
-                # Wrap payload in braces and parse as JSON
-                doc = json.loads('{' + payload + '}')
-                return {'operation': 'insert', 'collection': collection, 'query': {}, 'data': doc}
+            if op == 'add':
+                doc = json.loads('[' + payload + ']' if payload.startswith('[') else '{' + payload + '}')
+                return {'operation': 'add', 'collection': collection, 'query': {}, 'data': doc}
             
             elif op in ('find', 'delete'):
-                # Wrap payload in braces and parse as JSON
+                if not payload:
+                    return {'operation': op, 'collection': collection, 'query': {}}
                 query = json.loads('{' + payload + '}')
                 return {'operation': op, 'collection': collection, 'query': query}
             
             elif op == 'update':
-                # Split payload into query and update parts
                 query_str, update_str = QueryParser.split_update_payload(payload)
                 query = json.loads('{' + query_str + '}')
-                update = json.loads('{' + update_str + '}')
+                update = json.loads('[' + update_str + ']' if update_str.startswith('[') else '{' + update_str + '}')
                 return {'operation': 'update', 'collection': collection, 'query': query, 'data': update}
             
             else:
@@ -39,26 +39,57 @@ class QueryParser:
             raise ValidationError(f"Invalid JSON: {e}")
 
     @staticmethod
-    def split_update_payload(payload: str) -> tuple:
-        """Split update command payload into query and update JSON strings."""
+    def split_update_payload(payload: str) -> Tuple[str, str]:
         payload = payload.strip()
+        if not payload:
+            raise ValidationError("Update payload cannot be empty")
         brace_count = 0
+        in_string = False
+        escape = False
         split_index = -1
         
         for i, char in enumerate(payload):
-            if char == '{':
-                brace_count += 1
-            elif char == '}':
-                brace_count -= 1
-                if brace_count == 0 and i + 1 < len(payload) and payload[i + 1] == ' ':
-                    split_index = i + 1
+            if char == '"' and not escape:
+                in_string = not in_string
+            elif char == '\\' and not escape:
+                escape = True
+                continue
+            elif not in_string:
+                if char == '{':
+                    brace_count += 1
+                elif char == '}':
+                    brace_count -= 1
+                elif char == ',' and brace_count == 0:
+                    split_index = i
                     break
+            escape = False
         
         if split_index == -1:
-            raise ValidationError("Invalid update payload: must contain two JSON objects separated by a space")
+            for i, char in enumerate(payload):
+                if char == '"' and not escape:
+                    in_string = not in_string
+                elif char == '\\' and not escape:
+                    escape = True
+                    continue
+                elif not in_string:
+                    if char == '{':
+                        brace_count += 1
+                    elif char == '}':
+                        brace_count -= 1
+                        if brace_count == 0:
+                            j = i + 1
+                            while j < len(payload) and payload[j].isspace():
+                                j += 1
+                            if j < len(payload) and payload[j] == '{':
+                                split_index = i + 1
+                                break
+                escape = False
+        
+        if split_index == -1 or brace_count != 0:
+            raise ValidationError("Invalid update payload: must contain query and update JSON objects separated by comma or whitespace")
         
         query_str = payload[:split_index].strip()
-        update_str = payload[split_index:].strip()
+        update_str = payload[split_index + 1:].strip() if payload[split_index] == ',' else payload[split_index:].strip()
         
         if not query_str or not update_str:
             raise ValidationError("Both query and update must be non-empty JSON objects")
@@ -67,15 +98,33 @@ class QueryParser:
 
     @staticmethod
     def match(doc: Dict[str, Any], query: Dict[str, Any]) -> bool:
-        """Match a document against a query with support for operators."""
         for key, cond in query.items():
             if key == '$and':
-                if not all(QueryParser.match(doc, c) for c in cond):
-                    return False
+                if not isinstance(cond, list):
+                    raise ValidationError(f"Operator '$and' requires a list of conditions, got {type(cond).__name__}")
+                for c in cond:
+                    if not isinstance(c, dict):
+                        raise ValidationError(f"Each condition in '$and' must be a dictionary, got {type(c).__name__}")
+                    if not c:
+                        raise ValidationError("Empty condition in '$and' operator")
+                    if not QueryParser.match(doc, c):
+                        return False
             elif key == '$or':
-                if not any(QueryParser.match(doc, c) for c in cond):
-                    return False
+                if not isinstance(cond, list):
+                    raise ValidationError(f"Operator '$or' requires a list of conditions, got {type(cond).__name__}")
+                for c in cond:
+                    if not isinstance(c, dict):
+                        raise ValidationError(f"Each condition in '$or' must be a dictionary, got {type(c).__name__}")
+                    if not c:
+                        raise ValidationError("Empty condition in '$or' operator")
+                    if QueryParser.match(doc, c):
+                        return True
+                return False
             elif key == '$not':
+                if not isinstance(cond, dict):
+                    raise ValidationError(f"Operator '$not' requires a condition dictionary, got {type(cond).__name__}")
+                if not cond:
+                    raise ValidationError("Empty condition in '$not' operator")
                 if QueryParser.match(doc, cond):
                     return False
             elif key.startswith('$'):
@@ -98,7 +147,6 @@ class QueryParser:
 
     @staticmethod
     def _compare(val: Any, op: str, expected: Any) -> bool:
-        """Compare values using supported operators."""
         if op == '$gt': return val > expected
         if op == '$lt': return val < expected
         if op == '$gte': return val >= expected
