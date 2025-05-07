@@ -7,6 +7,7 @@ from src.core.exceptions import KiteDBError
 from threading import Lock
 import re
 
+
 class Database:
     def __init__(self, name: str):
         self.name = name
@@ -21,8 +22,8 @@ class Database:
     def _load(self):
         try:
             data = self.storage.load()
-            self.collections = data.get('collections', {})
-            self.schemas = data.get('schemas', {})
+            self.collections = data.get("collections", {})
+            self.schemas = data.get("schemas", {})
             for coll, docs in self.collections.items():
                 idx = IndexManager()
                 for i, doc in enumerate(docs):
@@ -35,15 +36,19 @@ class Database:
 
     def save(self):
         try:
-            self.storage.save({'collections': self.collections, 'schemas': self.schemas})
+            self.storage.save(
+                {"collections": self.collections, "schemas": self.schemas}
+            )
             logger.info(f"Database '{self.name}' saved")
         except Exception as e:
             logger.error(f"Save database '{self.name}' failed: {e}")
             raise KiteDBError(f"Failed to save database: {e}")
 
     def create_collection(self, name: str, schema: dict = None):
-        if not re.match(r'^[a-zA-Z0-9_-]+$', name):
-            raise KiteDBError("Collection name must contain only letters, numbers, underscores, or hyphens")
+        if not re.match(r"^[a-zA-Z0-9_-]+$", name):
+            raise KiteDBError(
+                "Collection name must contain only letters, numbers, underscores, or hyphens"
+            )
         if name in self.collections:
             raise KiteDBError(f"Collection '{name}' already exists")
         self.collections[name] = []
@@ -58,7 +63,9 @@ class Database:
             raise KiteDBError(f"Collection '{name}' not found")
         with self._lock:
             if self.transaction and self.transaction.active:
-                self.transaction.log({'collection': name, 'action': 'drop', 'params': []})
+                self.transaction.log(
+                    {"collection": name, "action": "drop", "params": []}
+                )
                 logger.debug(f"Logged drop collection '{name}'")
                 return "logged"
             self.collections.pop(name, None)

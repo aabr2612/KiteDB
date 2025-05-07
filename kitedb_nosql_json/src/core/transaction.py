@@ -3,8 +3,9 @@ from typing import List, Dict
 from src.config import logger
 from src.core.exceptions import TransactionError
 
+
 class Transaction:
-    def __init__(self, db: 'Database'):
+    def __init__(self, db: "Database"):
         self.db = db
         self.lock = Lock()
         self.active = False
@@ -31,19 +32,19 @@ class Transaction:
                 raise TransactionError("No active transaction")
             try:
                 for op in self.ops:
-                    coll_name = op['collection']
-                    action = op['action']
-                    params = op['params']
-                    if action == 'add':
+                    coll_name = op["collection"]
+                    action = op["action"]
+                    params = op["params"]
+                    if action == "add":
                         coll = self.db.get_collection(coll_name)
                         coll.insert(params[0], apply_transaction=True)
-                    elif action == 'update':
+                    elif action == "update":
                         coll = self.db.get_collection(coll_name)
                         coll.update(params[0], params[1], apply_transaction=True)
-                    elif action == 'delete':
+                    elif action == "delete":
                         coll = self.db.get_collection(coll_name)
                         coll.delete(params[0], apply_transaction=True)
-                    elif action == 'drop':
+                    elif action == "drop":
                         self.db.drop_collection(coll_name)
                 self.active = False
                 self.ops.clear()

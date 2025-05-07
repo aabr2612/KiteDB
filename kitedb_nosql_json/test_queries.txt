@@ -1,0 +1,94 @@
+Test Commands for KiteDB QueryParser
+
+Collection: users
+
+Database: b (run use b before executing)
+
+Format: .{}
+
+Note: Ensure the QueryParser version without single-object update syntax is used.
+
+=== ADD Commands ===
+
+Add a single document
+
+users.add{{"name":"Alice Smith","age":28,"class":1,"address":{"city":"San Francisco","zip":94105}}}
+
+Add multiple documents
+
+users.add{[{"name":"Bob Johnson","age":34,"class":2},{"name":"Clara Lee","age":25,"class":3,"hobbies":["reading","hiking"]}]}
+
+Add a document with numeric name (matches existing data)
+
+users.add{{"name":1,"age":20,"class":1,"address":{"zip":20,"ali":30}}}
+
+=== FIND Commands ===
+
+Find all documents
+
+users.find{}
+
+Find by single field
+
+users.find{"name":"Alice Smith"}
+
+Find by multiple fields
+
+users.find{"name":1,"age":20}
+
+Find with nested field
+
+users.find{"address.city":"San Francisco"}
+
+Find with comparison operator
+
+users.find{"age":{"$gt":25}}
+
+Find with logical operator ($or)
+
+users.find{"$or":[{"name":"Bob Johnson"},{"age":{"$gte":30}}]}
+
+Find with logical operator ($and)
+
+users.find{"$and":[{"class":1},{"address.zip":20}]}
+
+Find with $not
+
+users.find{"$not":{"name":"Clara Lee"}}
+
+=== UPDATE Commands ===
+
+
+users.update{"name":"Alice Smith", "age":29,"status":"active"}
+
+Update with multiple fields
+
+users.update{"name":1, "age":21,"class":2,"role":"student"}
+
+Update with nested field
+
+users.update{"name":1, "address":{zip":21,"ali":31}}
+
+users.update{"age":{"$gte":30}, "role":"senior","scores":{"math":5}}
+
+=== DELETE Commands ===
+
+Delete by single field
+
+users.delete{"name":"Clara Lee"}
+
+Delete by multiple fields
+
+users.delete{"name":1,"age":21}
+
+Delete with nested field
+
+users.delete{"address.city":"San Francisco"}
+
+Delete with logical operator
+
+users.delete{"$and":[{"class":2},{"status":"inactive"}]}
+
+Delete all documents
+
+users.delete{}

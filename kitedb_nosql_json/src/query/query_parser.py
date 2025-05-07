@@ -18,13 +18,27 @@ class QueryParser:
         
         try:
             if op == 'add':
-                doc = json.loads('[' + payload + ']' if payload.startswith('[') else '{' + payload + '}')
-                return {'operation': 'add', 'collection': collection, 'query': {}, 'data': doc}
+                if not payload:
+                    raise ValidationError("Add payload cannot be empty")
+                doc = json.loads(payload)
+                if isinstance(doc, dict):
+                    data = [doc]
+                elif isinstance(doc, list):
+                    if not doc:
+                        raise ValidationError("Document list cannot be empty")
+                    if not all(isinstance(item, dict) for item in doc):
+                        raise ValidationError("All documents in the list must be dictionaries")
+                    data = doc
+                else:
+                    raise ValidationError("Add payload must be a dictionary or a list of dictionaries")
+                return {'operation': 'add', 'collection': collection, 'query': {}, 'data': data}
             
             elif op in ('find', 'delete'):
                 if not payload:
                     return {'operation': op, 'collection': collection, 'query': {}}
                 query = json.loads('{' + payload + '}')
+                if not isinstance(query, dict):
+                    raise ValidationError("Query must be a dictionary")
                 return {'operation': op, 'collection': collection, 'query': query}
             
             elif op == 'update':

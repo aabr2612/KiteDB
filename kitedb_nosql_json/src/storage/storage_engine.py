@@ -8,12 +8,13 @@ from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 import shutil
 
+
 class StorageEngine:
     def __init__(self, db_name: str):
         self.db_name = db_name
-        self.db_path = os.path.join(config.get('storage.data_root'), db_name)
+        self.db_path = os.path.join(config.get("storage.data_root"), db_name)
         os.makedirs(self.db_path, exist_ok=True)
-        self.key = config.get('storage.encryption_key').encode()
+        self.key = config.get("storage.encryption_key").encode()
         if len(self.key) not in (16, 24, 32):
             raise StorageError("Encryption key must be 16, 24, or 32 bytes")
         logger.debug(f"StorageEngine for '{db_name}' at '{self.db_path}'")
@@ -46,7 +47,7 @@ class StorageEngine:
             if not os.path.isfile(path):
                 break
             try:
-                with open(path, 'rb') as f:
+                with open(path, "rb") as f:
                     encrypted = f.read()
                 decrypted = self._decrypt(encrypted)
                 part = pickle.loads(decrypted)
@@ -65,20 +66,20 @@ class StorageEngine:
         estimated_size = len(pickle.dumps(data)) * 1.5
         if free < estimated_size:
             raise StorageError("Insufficient disk space to save data")
-        
+
         collections = data.get("collections", {})
         schemas = data.get("schemas", {})
         docs = list(collections.items())
-        chunk_size = config.get('storage.chunk_size')
+        chunk_size = config.get("storage.chunk_size")
         for i in range(0, len(docs), chunk_size):
             chunk_id = i // chunk_size
-            part = dict(docs[i:i + chunk_size])
+            part = dict(docs[i : i + chunk_size])
             chunk_data = {"collections": part, "schemas": schemas}
             path = self._chunk_path(chunk_id)
             try:
                 serialized = pickle.dumps(chunk_data)
                 encrypted = self._encrypt(serialized)
-                with open(path, 'wb') as f:
+                with open(path, "wb") as f:
                     f.write(encrypted)
                 logger.info(f"Saved chunk {chunk_id}")
             except Exception as e:
