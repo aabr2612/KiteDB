@@ -1,11 +1,13 @@
 from typing import Dict, Any, List
 from src.config import logger
 
+
 class BTreeNode:
     def __init__(self):
         self.keys = []
         self.values = []
         self.children = []
+
 
 class IndexManager:
     def __init__(self):
@@ -30,7 +32,9 @@ class IndexManager:
                 node.values[idx].append(doc_id)
                 self._size += 1
         if self._size > 100000:
-            logger.warning(f"Index size for field '{field}' exceeds 100,000 entries; consider persistent indexing")
+            logger.warning(
+                f"Index size for field '{field}' exceeds 100,000 entries; consider persistent indexing"
+            )
         logger.debug(f"Index add: {field}={value} @ {doc_id}")
 
     def add_bulk(self, doc: Dict[str, Any], doc_id: int):

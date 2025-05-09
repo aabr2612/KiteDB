@@ -2,6 +2,7 @@ import logging
 import os
 from datetime import datetime
 
+
 class Logger:
     _instance = None
 
@@ -19,12 +20,19 @@ class Logger:
                 filename=log_file,
                 level=level,
                 format="%(asctime)s [%(levelname)s] %(message)s",
-                datefmt="%Y-%m-%d %H:%M:%S"
+                datefmt="%Y-%m-%d %H:%M:%S",
             )
             cls._instance.info("Logger initialized")
         return cls._instance
 
-    def debug(self, msg): logging.debug(msg)
-    def info(self, msg): logging.info(msg)
-    def warning(self, msg): logging.warning(msg)
-    def error(self, msg): logging.error(msg)
+    def debug(self, msg):
+        logging.debug(msg)
+
+    def info(self, msg):
+        logging.info(msg)
+
+    def warning(self, msg):
+        logging.warning(msg)
+
+    def error(self, msg):
+        logging.error(msg)
