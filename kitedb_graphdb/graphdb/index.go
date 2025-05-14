@@ -99,3 +99,14 @@ func (im *IndexManager) DeleteEdge(edgeID int64) error {
 	log.Debug("Edge deleted from index")
 	return nil
 }
+
+// GetEdgeIDs returns all edge IDs in the index
+func (im *IndexManager) GetEdgeIDs() []int64 {
+	log := logrus.WithField("component", "IndexManager")
+	ids := make([]int64, 0, len(im.edgeIndex))
+	for id := range im.edgeIndex {
+		ids = append(ids, id)
+	}
+	log.WithField("edge_count", len(ids)).Debug("Retrieved edge IDs")
+	return ids
+}

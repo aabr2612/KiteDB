@@ -100,25 +100,39 @@ func (p *Parser) createClause() (ASTNode, error) {
 	}
 	log.WithField("pos", p.pos).Debug("Processing CREATE clause")
 	node := ASTNode{Type: NodeCreate}
-	pattern, err := p.pattern()
-	if err != nil {
-		return ASTNode{}, err
+	for {
+		pattern, err := p.pattern()
+		if err != nil {
+			return ASTNode{}, err
+		}
+		node.Children = append(node.Children, pattern)
+		if p.pos >= len(p.tokens) || !p.accept(TokenSymbol, ",") {
+			break
+		}
+		log.WithField("pos", p.pos).Debug("Processing additional pattern in CREATE")
 	}
-	node.Children = append(node.Children, pattern)
 	return node, nil
 }
 
 // matchClause parses a MATCH clause
 func (p *Parser) matchClause() (ASTNode, error) {
+	log := logrus.WithField("component", "Parser")
 	if !p.expect(TokenKeyword, "MATCH") {
 		return ASTNode{}, fmt.Errorf("expected MATCH at position %d", p.pos)
 	}
+	log.WithField("pos", p.pos).Debug("Processing MATCH clause")
 	node := ASTNode{Type: NodeMatch}
-	pattern, err := p.pattern()
-	if err != nil {
-		return ASTNode{}, err
+	for {
+		pattern, err := p.pattern()
+		if err != nil {
+			return ASTNode{}, err
+		}
+		node.Children = append(node.Children, pattern)
+		if p.pos >= len(p.tokens) || !p.accept(TokenSymbol, ",") {
+			break
+		}
+		log.WithField("pos", p.pos).Debug("Processing additional pattern in MATCH")
 	}
-	node.Children = append(node.Children, pattern)
 	return node, nil
 }
 
@@ -210,17 +224,39 @@ func (p *Parser) returnClause() (ASTNode, error) {
 func (p *Parser) pattern() (ASTNode, error) {
 	log := logrus.WithField("component", "Parser")
 	log.WithField("pos", p.pos).Debug("Processing pattern")
-	if !p.expect(TokenSymbol, "(") {
+	node := ASTNode{Type: NodePattern}
+	if p.accept(TokenSymbol, "(") {
+		// Single node pattern
+		nodeNode, err := p.node()
+		if err != nil {
+			return ASTNode{}, err
+		}
+		node.Children = append(node.Children, nodeNode)
+		if !p.expect(TokenSymbol, ")") {
+			return ASTNode{}, fmt.Errorf("expected ) at position %d", p.pos)
+		}
+	} else {
 		return ASTNode{}, fmt.Errorf("expected ( at position %d", p.pos)
 	}
-	node := ASTNode{Type: NodePattern}
-	nodeNode, err := p.node()
-	if err != nil {
-		return ASTNode{}, err
-	}
-	node.Children = append(node.Children, nodeNode)
-	if !p.expect(TokenSymbol, ")") {
-		return ASTNode{}, fmt.Errorf("expected ) at position %d", p.pos)
+
+	// Check for relationship pattern
+	if p.accept(TokenSymbol, "-") {
+		rel, err := p.relationship()
+		if err != nil {
+			return ASTNode{}, err
+		}
+		node.Children = append(node.Children, rel)
+		if !p.expect(TokenSymbol, "(") {
+			return ASTNode{}, fmt.Errorf("expected ( after relationship at position %d", p.pos)
+		}
+		nodeNode, err := p.node()
+		if err != nil {
+			return ASTNode{}, err
+		}
+		node.Children = append(node.Children, nodeNode)
+		if !p.expect(TokenSymbol, ")") {
+			return ASTNode{}, fmt.Errorf("expected ) at position %d", p.pos)
+		}
 	}
 	return node, nil
 }
@@ -254,6 +290,48 @@ func (p *Parser) node() (ASTNode, error) {
 		if !p.expect(TokenSymbol, "}") {
 			return ASTNode{}, fmt.Errorf("expected } at position %d", p.pos)
 		}
+	}
+	return node, nil
+}
+
+// relationship parses a relationship pattern (e.g., [:RELATION])
+func (p *Parser) relationship() (ASTNode, error) {
+	node := ASTNode{Type: NodeRelationship}
+	if !p.expect(TokenSymbol, "[") {
+		return ASTNode{}, fmt.Errorf("expected [ at position %d", p.pos)
+	}
+	if p.accept(TokenIdentifier, "") {
+		node.Value = p.tokens[p.pos-1].Value
+	}
+	if p.accept(TokenSymbol, ":") {
+		if !p.expect(TokenIdentifier, "") {
+			return ASTNode{}, fmt.Errorf("expected relationship type after : at position %d", p.pos)
+		}
+		node.Children = append(node.Children, ASTNode{
+			Type:  NodeType,
+			Value: p.tokens[p.pos-1].Value,
+		})
+	}
+	if p.accept(TokenSymbol, "{") {
+		for p.pos < len(p.tokens) && p.tokens[p.pos].Value != "}" {
+			prop, err := p.property()
+			if err != nil {
+				return ASTNode{}, err
+			}
+			node.Children = append(node.Children, prop)
+			if !p.accept(TokenSymbol, ",") {
+				break
+			}
+		}
+		if !p.expect(TokenSymbol, "}") {
+			return ASTNode{}, fmt.Errorf("expected } at position %d", p.pos)
+		}
+	}
+	if !p.expect(TokenSymbol, "]") {
+		return ASTNode{}, fmt.Errorf("expected ] at position %d", p.pos)
+	}
+	if !p.expect(TokenSymbol, "->") {
+		return ASTNode{}, fmt.Errorf("expected -> at position %d", p.pos)
 	}
 	return node, nil
 }

@@ -2,6 +2,7 @@ package graphdb
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/sirupsen/logrus"
 )
@@ -63,14 +64,19 @@ func (gm *GraphManager) AddNode(node Node) (int64, error) {
 // AddEdge adds a new edge to the graph
 func (gm *GraphManager) AddEdge(edge Edge) (int64, error) {
 	log := logrus.WithFields(logrus.Fields{
+		"current_next_edge_id": gm.nextEdgeID,
+	})
+	log.Debug("Assigning edge ID")
+	edge.ID = gm.nextEdgeID
+	edge.Active = true
+	gm.nextEdgeID++
+
+	log = logrus.WithFields(logrus.Fields{
 		"edge_id": edge.ID,
 		"type":    edge.Type,
 		"source":  edge.Source,
 		"target":  edge.Target,
 	})
-	edge.ID = gm.nextEdgeID
-	edge.Active = true
-	gm.nextEdgeID++
 
 	pageID, err := gm.recordMgr.WriteRecord(edge)
 	if err != nil {
@@ -90,6 +96,11 @@ func (gm *GraphManager) AddEdge(edge Edge) (int64, error) {
 // GetNode retrieves a node by ID
 func (gm *GraphManager) GetNode(nodeID int64) (Node, error) {
 	log := logrus.WithField("node_id", nodeID)
+	start := time.Now()
+	defer func() {
+		log.WithField("duration_ms", time.Since(start).Milliseconds()).Debug("GetNode completed")
+	}()
+
 	pageID, err := gm.indexManager.SearchNode(nodeID)
 	if err != nil {
 		log.WithError(err).Error("Failed to find node in index")
@@ -113,10 +124,18 @@ func (gm *GraphManager) GetNode(nodeID int64) (Node, error) {
 
 // GetEdge retrieves an edge by ID
 func (gm *GraphManager) GetEdge(edgeID int64) (Edge, error) {
-	log := logrus.WithField("edge_id", edgeID)
+	log := logrus.WithFields(logrus.Fields{
+		"edge_id":      edgeID,
+		"next_edge_id": gm.nextEdgeID,
+	})
+	start := time.Now()
+	defer func() {
+		log.WithField("duration_ms", time.Since(start).Milliseconds()).Debug("GetEdge completed")
+	}()
+
 	pageID, err := gm.indexManager.SearchEdge(edgeID)
 	if err != nil {
-		log.WithError(err).Error("Failed to find edge in index")
+		log.WithError(err).Warn("Failed to find edge in index")
 		return Edge{}, fmt.Errorf("failed to find edge %d: %v", edgeID, err)
 	}
 
