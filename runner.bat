@@ -16,8 +16,8 @@ if "%choice%"=="1" (
     )
 ) else if "%choice%"=="2" (
     echo Starting Graph database...
-    cd go_project
-    go run main.go
+    cd kitedb_graphdb
+    go run cmd/repl/main.go
     if errorlevel 1 (
         echo Error: Failed to run Go project. Check the path or Go installation.
         pause
