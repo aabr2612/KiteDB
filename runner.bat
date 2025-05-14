@@ -1,4 +1,6 @@
 @echo off
+:main_menu
+cls
 echo Welcome to Kite Databases!
 echo     Please choose a database to use:
 echo          1. NO SQL based json database
@@ -14,6 +16,7 @@ if "%choice%"=="1" (
         echo Error: Failed to run Python project. Check the path or Python installation.
         pause
     )
+    cd ..
 ) else if "%choice%"=="2" (
     echo Starting Graph database...
     cd kitedb_graphdb
@@ -31,8 +34,4 @@ if "%choice%"=="1" (
     pause
 )
 
-echo.
-echo Press any key to return to the menu...
-pause >nul
-cls
-goto :eof
+goto main_menu
