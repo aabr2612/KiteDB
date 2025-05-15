@@ -17,8 +17,6 @@ type Executor struct {
 
 // NewExecutor initializes a new Executor
 func NewExecutor(graph *GraphManager, txnMgr *TransactionManager) *Executor {
-	log := logrus.WithField("component", "Executor")
-	log.Info("Initializing Executor")
 	return &Executor{
 		graph:  graph,
 		txnMgr: txnMgr,
@@ -28,13 +26,6 @@ func NewExecutor(graph *GraphManager, txnMgr *TransactionManager) *Executor {
 
 // Execute processes the AST and returns results
 func (e *Executor) Execute(txnID int64, ast ASTNode) ([]map[string]interface{}, error) {
-	log := logrus.WithFields(logrus.Fields{
-		"txn_id":       txnID,
-		"ast_type":     ast.Type,
-		"ast_children": len(ast.Children),
-	})
-	log.Debug("Executing query")
-
 	if ast.Type != NodeQuery {
 		return nil, fmt.Errorf("expected query node, got %v", ast.Type)
 	}
@@ -46,49 +37,40 @@ func (e *Executor) Execute(txnID int64, ast ASTNode) ([]map[string]interface{}, 
 		switch child.Type {
 		case NodeCreate:
 			if err := e.executeCreate(txnID, child); err != nil {
-				log.WithError(err).Error("CREATE execution failed")
 				return nil, err
 			}
 		case NodeMatch:
 			if err := e.executeMatch(txnID, child); err != nil {
-				log.WithError(err).Error("MATCH execution failed")
 				return nil, err
 			}
 		case NodeWhere:
 			if err := e.executeWhere(txnID, child); err != nil {
-				log.WithError(err).Error("WHERE execution failed")
 				return nil, err
 			}
 		case NodeSet:
 			if err := e.executeSet(txnID, child); err != nil {
-				log.WithError(err).Error("SET execution failed")
 				return nil, err
 			}
 		case NodeDelete:
 			if err := e.executeDelete(txnID, child); err != nil {
-				log.WithError(err).Error("DELETE execution failed")
 				return nil, err
 			}
 		case NodeReturn:
 			var err error
 			results, err = e.executeReturn(txnID, child)
 			if err != nil {
-				log.WithError(err).Error("RETURN execution failed")
 				return nil, err
 			}
 		default:
-			log.WithField("node_type", child.Type).Error("Unsupported AST node")
 			return nil, fmt.Errorf("unsupported AST node type: %v", child.Type)
 		}
 	}
 
-	log.Info("Query executed successfully")
 	return results, nil
 }
 
 // executeCreate handles CREATE clauses
 func (e *Executor) executeCreate(txnID int64, node ASTNode) error {
-	log := logrus.WithField("txn_id", txnID)
 	if len(node.Children) != 1 || node.Children[0].Type != NodePattern {
 		return fmt.Errorf("invalid CREATE pattern")
 	}
@@ -158,7 +140,6 @@ func (e *Executor) executeCreate(txnID int64, node ASTNode) error {
 			e.vars[txnID][varName] = append(nodes.([]Node), node)
 		}
 
-		log.WithField("node_id", nodeID).Info("Node created")
 	} else if len(pattern.Children) == 3 && pattern.Children[0].Type == NodeNode && pattern.Children[1].Type == NodeRelationship && pattern.Children[2].Type == NodeNode {
 		// Relationship creation
 		sourceNode := pattern.Children[0]
@@ -228,7 +209,6 @@ func (e *Executor) executeCreate(txnID int64, node ASTNode) error {
 				}
 				e.vars[txnID][sourceVar] = []Node{node}
 			}
-			log.WithField("node_id", sourceID).Info("Source node created")
 		}
 
 		// Handle target node
@@ -290,7 +270,6 @@ func (e *Executor) executeCreate(txnID int64, node ASTNode) error {
 				}
 				e.vars[txnID][targetVar] = []Node{node}
 			}
-			log.WithField("node_id", targetID).Info("Target node created")
 		}
 
 		// Create relationship
@@ -361,13 +340,6 @@ func (e *Executor) executeCreate(txnID int64, node ASTNode) error {
 			}
 			e.vars[txnID][relVar] = append(edges.([]Edge), edge)
 		}
-
-		log.WithFields(logrus.Fields{
-			"edge_id":   edgeID,
-			"source_id": sourceID,
-			"target_id": targetID,
-			"type":      newEdge.Type,
-		}).Info("Edge created")
 	} else {
 		return fmt.Errorf("invalid pattern in CREATE")
 	}
@@ -376,7 +348,6 @@ func (e *Executor) executeCreate(txnID int64, node ASTNode) error {
 
 // executeMatch handles MATCH clauses
 func (e *Executor) executeMatch(txnID int64, node ASTNode) error {
-	log := logrus.WithField("txn_id", txnID)
 	if len(node.Children) != 1 || node.Children[0].Type != NodePattern {
 		return fmt.Errorf("invalid MATCH pattern")
 	}
@@ -400,7 +371,6 @@ func (e *Executor) executeMatch(txnID int64, node ASTNode) error {
 
 		nodeIDs, exists := e.graph.nodeLabelMap[label]
 		if !exists || len(nodeIDs) == 0 {
-			log.WithField("label", label).Debug("No nodes found for label")
 			e.vars[txnID][varName] = []Node{}
 			return nil
 		}
@@ -409,7 +379,6 @@ func (e *Executor) executeMatch(txnID int64, node ASTNode) error {
 		for _, nodeID := range nodeIDs {
 			node, err := e.graph.GetNode(nodeID)
 			if err != nil {
-				log.WithError(err).WithField("node_id", nodeID).Warn("Failed to retrieve node")
 				continue
 			}
 			if node.Active {
@@ -420,11 +389,6 @@ func (e *Executor) executeMatch(txnID int64, node ASTNode) error {
 		if varName != "" {
 			e.vars[txnID][varName] = nodes
 		}
-
-		log.WithFields(logrus.Fields{
-			"label":      label,
-			"node_count": len(nodes),
-		}).Info("MATCH executed")
 	} else if len(pattern.Children) == 3 && pattern.Children[0].Type == NodeNode && pattern.Children[1].Type == NodeRelationship && pattern.Children[2].Type == NodeNode {
 		// Relationship match
 		sourceNode := pattern.Children[0]
@@ -445,10 +409,8 @@ func (e *Executor) executeMatch(txnID int64, node ASTNode) error {
 		// Get all edge IDs from IndexManager
 		edges := []Edge{}
 		for edgeID := range e.graph.indexManager.edgeIndex {
-			log.WithField("edge_id", edgeID).Debug("Checking edge")
 			edge, err := e.graph.GetEdge(edgeID)
 			if err != nil {
-				log.WithError(err).WithField("edge_id", edgeID).Warn("Failed to retrieve edge")
 				continue
 			}
 			if edge.Active && edge.Type == relType {
@@ -466,7 +428,6 @@ func (e *Executor) executeMatch(txnID int64, node ASTNode) error {
 			for _, edge := range edges {
 				node, err := e.graph.GetNode(edge.Source)
 				if err != nil {
-					log.WithError(err).WithField("node_id", edge.Source).Warn("Failed to retrieve source node")
 					continue
 				}
 				if node.Active {
@@ -480,7 +441,6 @@ func (e *Executor) executeMatch(txnID int64, node ASTNode) error {
 			for _, edge := range edges {
 				node, err := e.graph.GetNode(edge.Target)
 				if err != nil {
-					log.WithError(err).WithField("node_id", edge.Target).Warn("Failed to retrieve target node")
 					continue
 				}
 				if node.Active {
@@ -489,11 +449,6 @@ func (e *Executor) executeMatch(txnID int64, node ASTNode) error {
 			}
 			e.vars[txnID][targetNode.Value] = nodes
 		}
-
-		log.WithFields(logrus.Fields{
-			"rel_type":   relType,
-			"edge_count": len(edges),
-		}).Info("MATCH relationship executed")
 	} else {
 		return fmt.Errorf("invalid pattern in MATCH")
 	}
@@ -576,7 +531,6 @@ func (e *Executor) executeWhere(txnID int64, node ASTNode) error {
 
 // executeSet handles SET clauses
 func (e *Executor) executeSet(txnID int64, node ASTNode) error {
-	log := logrus.WithField("txn_id", txnID)
 	for _, child := range node.Children {
 		if child.Type != NodeProperty || len(child.Children) != 3 {
 			return fmt.Errorf("invalid SET property")
@@ -623,11 +577,6 @@ func (e *Executor) executeSet(txnID int64, node ASTNode) error {
 				}); err != nil {
 					return fmt.Errorf("failed to record operation: %v", err)
 				}
-
-				log.WithFields(logrus.Fields{
-					"node_id": node.ID,
-					"key":     key,
-				}).Info("SET property updated for node")
 			}
 		} else if edges, ok := obj.([]Edge); ok {
 			for _, edge := range edges {
@@ -642,11 +591,6 @@ func (e *Executor) executeSet(txnID int64, node ASTNode) error {
 				}); err != nil {
 					return fmt.Errorf("failed to record operation: %v", err)
 				}
-
-				log.WithFields(logrus.Fields{
-					"edge_id": edge.ID,
-					"key":     key,
-				}).Info("SET property updated for edge")
 			}
 		} else {
 			return fmt.Errorf("variable %s is not a node or edge list", varName)
@@ -657,7 +601,6 @@ func (e *Executor) executeSet(txnID int64, node ASTNode) error {
 
 // executeDelete handles DELETE clauses
 func (e *Executor) executeDelete(txnID int64, node ASTNode) error {
-	log := logrus.WithField("txn_id", txnID)
 	for _, child := range node.Children {
 		if child.Type != NodeIdentifier {
 			return fmt.Errorf("invalid DELETE identifier")
@@ -681,7 +624,6 @@ func (e *Executor) executeDelete(txnID int64, node ASTNode) error {
 					return fmt.Errorf("failed to record operation: %v", err)
 				}
 
-				log.WithField("node_id", node.ID).Info("Node deleted")
 			}
 		} else if edges, ok := obj.([]Edge); ok {
 			for _, edge := range edges {
@@ -696,7 +638,6 @@ func (e *Executor) executeDelete(txnID int64, node ASTNode) error {
 					return fmt.Errorf("failed to record operation: %v", err)
 				}
 
-				log.WithField("edge_id", edge.ID).Info("Edge deleted")
 			}
 		} else {
 			return fmt.Errorf("variable %s is not a node or edge list", varName)
@@ -709,7 +650,6 @@ func (e *Executor) executeDelete(txnID int64, node ASTNode) error {
 
 // executeReturn handles RETURN clauses
 func (e *Executor) executeReturn(txnID int64, node ASTNode) ([]map[string]interface{}, error) {
-	log := logrus.WithField("txn_id", txnID)
 	results := []map[string]interface{}{}
 	uniqueItems := make(map[string]map[string]interface{}) // key: type+id
 
@@ -720,7 +660,6 @@ func (e *Executor) executeReturn(txnID int64, node ASTNode) ([]map[string]interf
 		varName := child.Value
 		obj, exists := e.vars[txnID][varName]
 		if !exists {
-			log.WithField("var_name", varName).Warn("Variable not found in RETURN")
 			continue
 		}
 
@@ -761,6 +700,5 @@ func (e *Executor) executeReturn(txnID int64, node ASTNode) ([]map[string]interf
 		}
 	}
 
-	log.WithField("result_count", len(results)).Info("RETURN executed")
 	return results, nil
 }

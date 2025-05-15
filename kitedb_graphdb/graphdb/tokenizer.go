@@ -44,8 +44,6 @@ func NewTokenizer(input string) *Tokenizer {
 
 // Tokenize processes the input query into tokens
 func (t *Tokenizer) Tokenize() []Token {
-	log := logrus.WithField("component", "Tokenizer")
-	log.Debug("Starting tokenization")
 	for t.pos < len(t.input) {
 		switch {
 		case unicode.IsSpace(rune(t.input[t.pos])):
@@ -61,13 +59,11 @@ func (t *Tokenizer) Tokenize() []Token {
 		}
 	}
 	t.tokens = append(t.tokens, Token{Type: TokenEOF, Value: ""})
-	log.WithField("token_count", len(t.tokens)).Info("Tokenization complete")
 	// Debug: Log all tokens
 	tokenList := make([]string, len(t.tokens))
 	for i, token := range t.tokens {
 		tokenList[i] = fmt.Sprintf("%v:%s", token.Type, token.Value)
 	}
-	log.WithField("tokens", strings.Join(tokenList, ", ")).Debug("Tokens produced")
 	return t.tokens
 }
 

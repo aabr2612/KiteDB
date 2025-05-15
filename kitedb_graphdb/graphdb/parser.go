@@ -3,8 +3,6 @@ package graphdb
 import (
 	"fmt"
 	"strings"
-
-	"github.com/sirupsen/logrus"
 )
 
 // Parser converts tokens into an AST
@@ -23,21 +21,16 @@ func NewParser(tokens []Token) *Parser {
 
 // Parse parses the query into an AST
 func (p *Parser) Parse() (ASTNode, error) {
-	log := logrus.WithField("component", "Parser")
-	log.Debug("Starting parsing")
 	if p.pos >= len(p.tokens) {
 		return ASTNode{}, fmt.Errorf("empty query")
 	}
 	node, err := p.query()
 	if err != nil {
-		log.WithError(err).Error("Failed to parse query")
 		return ASTNode{}, err
 	}
 	if p.pos < len(p.tokens) && p.tokens[p.pos].Type != TokenEOF {
-		log.Error("Unexpected tokens after query")
 		return ASTNode{}, fmt.Errorf("unexpected tokens at position %d", p.pos)
 	}
-	log.Info("Parsing complete")
 	return node, nil
 }
 
@@ -94,11 +87,9 @@ func (p *Parser) query() (ASTNode, error) {
 
 // createClause parses a CREATE clause
 func (p *Parser) createClause() (ASTNode, error) {
-	log := logrus.WithField("component", "Parser")
 	if !p.expect(TokenKeyword, "CREATE") {
 		return ASTNode{}, fmt.Errorf("expected CREATE at position %d", p.pos)
 	}
-	log.WithField("pos", p.pos).Debug("Processing CREATE clause")
 	node := ASTNode{Type: NodeCreate}
 	for {
 		pattern, err := p.pattern()
@@ -109,18 +100,15 @@ func (p *Parser) createClause() (ASTNode, error) {
 		if p.pos >= len(p.tokens) || !p.accept(TokenSymbol, ",") {
 			break
 		}
-		log.WithField("pos", p.pos).Debug("Processing additional pattern in CREATE")
 	}
 	return node, nil
 }
 
 // matchClause parses a MATCH clause
 func (p *Parser) matchClause() (ASTNode, error) {
-	log := logrus.WithField("component", "Parser")
 	if !p.expect(TokenKeyword, "MATCH") {
 		return ASTNode{}, fmt.Errorf("expected MATCH at position %d", p.pos)
 	}
-	log.WithField("pos", p.pos).Debug("Processing MATCH clause")
 	node := ASTNode{Type: NodeMatch}
 	for {
 		pattern, err := p.pattern()
@@ -131,7 +119,6 @@ func (p *Parser) matchClause() (ASTNode, error) {
 		if p.pos >= len(p.tokens) || !p.accept(TokenSymbol, ",") {
 			break
 		}
-		log.WithField("pos", p.pos).Debug("Processing additional pattern in MATCH")
 	}
 	return node, nil
 }
@@ -222,8 +209,6 @@ func (p *Parser) returnClause() (ASTNode, error) {
 
 // pattern parses a node or relationship pattern
 func (p *Parser) pattern() (ASTNode, error) {
-	log := logrus.WithField("component", "Parser")
-	log.WithField("pos", p.pos).Debug("Processing pattern")
 	node := ASTNode{Type: NodePattern}
 	if p.accept(TokenSymbol, "(") {
 		// Single node pattern
@@ -474,41 +459,28 @@ func (p *Parser) expression() (ASTNode, error) {
 
 // expect checks and consumes a token
 func (p *Parser) expect(tokenType TokenType, value string) bool {
-	log := logrus.WithFields(logrus.Fields{
-		"component": "Parser",
-		"pos":       p.pos,
-		"expected":  fmt.Sprintf("%v:%s", tokenType, value),
-	})
 	if p.pos >= len(p.tokens) {
-		log.Debug("No more tokens")
 		return false
 	}
 	current := p.tokens[p.pos]
-	log = log.WithField("current", fmt.Sprintf("%v:%s", current.Type, current.Value))
 	if tokenType == TokenIdentifier && value == "" {
 		if current.Type == tokenType {
 			p.pos++
-			log.Debug("Expected identifier matched")
 			return true
 		}
-		log.Debug("Expected identifier not matched")
 		return false
 	}
 	if tokenType == TokenKeyword {
 		if current.Type == tokenType && strings.ToUpper(current.Value) == value {
 			p.pos++
-			log.Debug("Expected keyword matched")
 			return true
 		}
-		log.Debug("Expected keyword not matched")
 		return false
 	}
 	if current.Type == tokenType && current.Value == value {
 		p.pos++
-		log.Debug("Expected token matched")
 		return true
 	}
-	log.Debug("Expected token not matched")
 	return false
 }
 

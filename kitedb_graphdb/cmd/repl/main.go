@@ -6,11 +6,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"time"
 
 	"graphdb/graphdb"
-
-	"github.com/sirupsen/logrus"
 )
 
 // REPL manages the read-eval-print loop
@@ -18,19 +15,12 @@ type REPL struct {
 	currentDB     *graphdb.GraphDB
 	currentDBName string
 	databases     map[string]*graphdb.GraphDB
-	logger        *logrus.Logger
-	queryCount    int
 }
 
 // NewREPL initializes a new REPL
 func NewREPL() *REPL {
-	logger := logrus.New()
-	logger.SetFormatter(&logrus.TextFormatter{
-		FullTimestamp: true,
-	})
 	return &REPL{
 		databases: make(map[string]*graphdb.GraphDB),
-		logger:    logger,
 	}
 }
 
@@ -118,7 +108,6 @@ Type '.exit' or 'quit' to exit.`)
 
 // run executes the REPL loop
 func (r *REPL) run() {
-	r.logger.WithField("component", "Main").Info("Starting GraphDB REPL")
 	fmt.Println("Welcome to GraphDB REPL. Type '.help' for commands or 'quit' to exit.")
 
 	scanner := bufio.NewScanner(os.Stdin)
@@ -137,17 +126,10 @@ func (r *REPL) run() {
 			continue
 		}
 
-		r.queryCount++
-		log := r.logger.WithFields(logrus.Fields{
-			"component": "Main",
-			"query":     input,
-			"query_num": r.queryCount,
-		})
-
 		if input == ".exit" || input == "quit" {
 			for name, db := range r.databases {
 				if err := db.Close(); err != nil {
-					log.WithError(err).WithField("db_name", name).Error("Failed to close database")
+					fmt.Printf("Error: failed to close database %s: %v\n", name, err)
 				}
 			}
 			fmt.Println("Goodbye!")
@@ -199,21 +181,32 @@ func (r *REPL) run() {
 			}
 			if r.currentDB != nil && r.currentDB != db {
 				if err := r.currentDB.Close(); err != nil {
-					log.WithError(err).WithField("db_name", r.currentDBName).Error("Failed to close current database")
+					fmt.Printf("Error: failed to close current database: %v\n", err)
 				}
 			}
 			r.currentDB = db
 			r.currentDBName = name
-			log.WithField("db_name", name).Info("Using database: " + name)
+			fmt.Printf("Using database: %s\n", name)
 			continue
 		}
 
 		if input == "SHOW DATABASES" {
 			fmt.Println("Databases:")
-			for name := range r.databases {
-				fmt.Printf("  %s\n", name)
+			// Scan the databases folder for .db files
+			files, err := os.ReadDir("databases")
+			if err != nil {
+				fmt.Printf("Error: failed to read databases directory: %v\n", err)
+				continue
 			}
-			if len(r.databases) == 0 {
+			found := false
+			for _, file := range files {
+				if !file.IsDir() && strings.HasSuffix(file.Name(), ".db") {
+					dbName := strings.TrimSuffix(file.Name(), ".db")
+					fmt.Printf("  %s\n", dbName)
+					found = true
+				}
+			}
+			if !found {
 				fmt.Println("  (none)")
 			}
 			continue
@@ -226,20 +219,22 @@ func (r *REPL) run() {
 				continue
 			}
 			db, exists := r.databases[name]
-			if !exists {
+			if exists {
+				if err := db.Close(); err != nil {
+					fmt.Printf("Error: failed to close database: %v\n", err)
+					continue
+				}
+				delete(r.databases, name)
+			}
+			dbPath := filepath.Join("databases", name+".db")
+			if _, err := os.Stat(dbPath); os.IsNotExist(err) {
 				fmt.Printf("Error: database %s does not exist\n", name)
 				continue
 			}
-			if err := db.Close(); err != nil {
-				fmt.Printf("Error: failed to close database: %v\n", err)
-				continue
-			}
-			dbPath := filepath.Join("databases", name+".db")
 			if err := os.Remove(dbPath); err != nil {
 				fmt.Printf("Error: failed to delete database file: %v\n", err)
 				continue
 			}
-			delete(r.databases, name)
 			if r.currentDBName == name {
 				r.currentDB = nil
 				r.currentDBName = ""
@@ -257,9 +252,9 @@ func (r *REPL) run() {
 			results, err := r.currentDB.ExecuteQuery("MATCH (n:Person) RETURN n")
 			if err != nil {
 				fmt.Printf("Error: query execution failed: %v\n", err)
-				log.WithError(err).Error("Failed to execute query")
 				continue
 			}
+			fmt.Println("Query Successful")
 			fmt.Println(formatResults(results))
 			continue
 		}
@@ -272,9 +267,9 @@ func (r *REPL) run() {
 			results, err := r.currentDB.ExecuteQuery("MATCH ()-[r]->() RETURN r")
 			if err != nil {
 				fmt.Printf("Error: query execution failed: %v\n", err)
-				log.WithError(err).Error("Failed to execute query")
 				continue
 			}
+			fmt.Println("Query Successful")
 			fmt.Println(formatResults(results))
 			continue
 		}
@@ -325,27 +320,17 @@ func (r *REPL) run() {
 			continue
 		}
 
-		log.Info("Executing query")
-		start := time.Now()
 		results, err := r.currentDB.ExecuteQuery(input)
 		if err != nil {
 			fmt.Printf("Error: query execution failed: %v\n", err)
-			log.WithError(err).Error("Failed to execute query")
 			continue
 		}
-		duration := time.Since(start)
-
+		fmt.Println("Query Successful")
 		fmt.Println(formatResults(results))
-		log.WithField("duration_ms", duration.Milliseconds()).Info("Query executed successfully")
-		if len(results) > 0 {
-			log.WithField("results", fmt.Sprintf("%v", results)).Info("Query executed successfully")
-		} else {
-			log.Info("Query executed successfully; no results")
-		}
 	}
 
 	if err := scanner.Err(); err != nil {
-		r.logger.WithError(err).Error("Error reading input")
+		fmt.Printf("Error: failed to read input: %v\n", err)
 	}
 }
 
