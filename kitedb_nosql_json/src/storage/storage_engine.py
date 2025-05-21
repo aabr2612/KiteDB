@@ -1,9 +1,10 @@
 import os
+import re
 import pickle
 from typing import Dict, Any
 from src.config import config
 from src.config import logger
-from src.core.exceptions import StorageError
+from src.core.exceptions import StorageError, KiteDBError
 from Crypto.Cipher import AES
 from Crypto.Util.Padding import pad, unpad
 import shutil
@@ -12,6 +13,11 @@ import shutil
 class StorageEngine:
     def __init__(self, db_name: str):
         """Initialize the StorageEngine with a database name and set up encryption."""
+        """Creates a new collection with an optional schema, validating the name."""
+        if not re.match(r"^[a-zA-Z0-9_-]+$", db_name):
+            raise KiteDBError(
+                "Database name must contain only letters, numbers, underscores, or hyphens"
+            )
         self.db_name = db_name
         self.db_path = os.path.join(config.get("storage.data_root"), db_name)
         os.makedirs(self.db_path, exist_ok=True)
