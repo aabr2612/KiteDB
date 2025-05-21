@@ -1,16 +1,4 @@
-__pycache__/
-logs/
-db/
-*.logs
-*.db
-testing.py
-server.py
-acl.json
-users.json
-tempCodeRunnerFile.py
-/kitedb_nosql_json/venv/*
-/kitedb_nosql_json/acl.json
-/kitedb_nosql_json/users.json
+# Logs
 logs
 *.log
 npm-debug.log*
@@ -18,10 +6,13 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+
 node_modules
 dist
 dist-ssr
 *.local
+
+# Editor directories and files
 .vscode/*
 !.vscode/extensions.json
 .idea
