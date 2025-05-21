@@ -11,6 +11,7 @@ import shutil
 
 class StorageEngine:
     def __init__(self, db_name: str):
+        """Initialize the StorageEngine with a database name and set up encryption."""
         self.db_name = db_name
         self.db_path = os.path.join(config.get("storage.data_root"), db_name)
         os.makedirs(self.db_path, exist_ok=True)
@@ -20,14 +21,17 @@ class StorageEngine:
         logger.debug(f"StorageEngine for '{db_name}' at '{self.db_path}'")
 
     def _chunk_path(self, chunk_id: int) -> str:
+        """Generate the file path for a specific data chunk."""
         return os.path.join(self.db_path, f"chunk_{chunk_id}.bin")
 
     def _encrypt(self, data: bytes) -> bytes:
+        """Encrypt the provided data using AES-CBC with padding."""
         cipher = AES.new(self.key, AES.MODE_CBC)
         ct_bytes = cipher.encrypt(pad(data, AES.block_size))
         return cipher.iv + ct_bytes
 
     def _decrypt(self, data: bytes) -> bytes:
+        """Decrypt the provided data using AES-CBC with padding."""
         if len(data) < 16:
             raise StorageError("Invalid encrypted data: too short")
         iv = data[:16]
@@ -40,6 +44,7 @@ class StorageEngine:
             raise StorageError(f"Decryption failed: {e}")
 
     def load(self) -> Dict[str, Any]:
+        """Load and decrypt all data chunks from disk into a dictionary."""
         data = {"collections": {}, "schemas": {}}
         chunk = 0
         while True:
@@ -62,6 +67,7 @@ class StorageEngine:
         return data
 
     def save(self, data: Dict[str, Any]) -> None:
+        """Save the provided data to disk in encrypted chunks, checking disk space."""
         total, used, free = shutil.disk_usage(self.db_path)
         estimated_size = len(pickle.dumps(data)) * 1.5
         if free < estimated_size:

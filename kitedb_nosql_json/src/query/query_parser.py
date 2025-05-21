@@ -6,6 +6,7 @@ from src.core.exceptions import ValidationError
 class QueryParser:
     @staticmethod
     def parse(command: str) -> Dict[str, Any]:
+        """Parse a database command into its components: collection, operation, and parameters."""
         if not command or not command.strip():
             raise ValidationError("Command cannot be empty")
         match = re.match(r'^(?P<collection>\w+)\.(?P<operation>\w+)\s*\{(?P<parameters>.*)\}$', command.strip())
@@ -54,6 +55,7 @@ class QueryParser:
 
     @staticmethod
     def split_update_payload(payload: str) -> Tuple[str, str]:
+        """Split an update command payload into query and update components."""
         payload = payload.strip()
         if not payload:
             raise ValidationError("Update payload cannot be empty")
@@ -112,6 +114,7 @@ class QueryParser:
 
     @staticmethod
     def match(doc: Dict[str, Any], query: Dict[str, Any]) -> bool:
+        """Check if a document matches the given query conditions."""
         for key, cond in query.items():
             if key == '$and':
                 if not isinstance(cond, list):
@@ -161,6 +164,7 @@ class QueryParser:
 
     @staticmethod
     def _compare(val: Any, op: str, expected: Any) -> bool:
+        """Compare a document value against an expected value using a specified operator."""
         if op == '$gt': return val > expected
         if op == '$lt': return val < expected
         if op == '$gte': return val >= expected

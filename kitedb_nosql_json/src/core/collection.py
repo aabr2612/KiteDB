@@ -12,7 +12,17 @@ class Collection:
         self.lock = Lock()
 
     def _map_type(self, type_name: str) -> type:
-        """Map string type names to Python types."""
+        """Map string type names to Python types.
+
+        Args:
+            type_name (str): The name of the type to map.
+
+        Returns:
+            type: The corresponding Python type.
+
+        Raises:
+            ValidationError: If the type_name is not found in the type map.
+        """
         type_map = {
             "str": str,
             "int": int,
@@ -26,6 +36,14 @@ class Collection:
         return type_map[type_name]
 
     def validate_schema(self, doc: Dict[str, Any]):
+        """Validate a document against the collection's schema.
+
+        Args:
+            doc (Dict[str, Any]): The document to validate.
+
+        Raises:
+            ValidationError: If the document does not match the schema requirements.
+        """
         schema = self.db.schemas.get(self.name, {})
         if not schema:
             return
@@ -43,6 +61,19 @@ class Collection:
                 raise ValidationError(f"Unexpected field in document: {field}")
 
     def insert(self, docs: Any, apply_transaction: bool = False) -> Any:
+        """Insert one or more documents into the collection.
+
+        Args:
+            docs (Any): A single document or a list of documents to insert.
+            apply_transaction (bool): If True, applies the insert directly, bypassing transaction logging.
+
+        Returns:
+            Any: List of inserted document IDs or "logged" if transaction is active.
+
+        Raises:
+            ValidationError: If a document is not a dictionary or fails schema validation.
+            KiteDBError: If the insert operation fails.
+        """
         with self.lock:
             documents = docs if isinstance(docs, list) else [docs]
             for doc in documents:
@@ -83,6 +114,17 @@ class Collection:
                 raise KiteDBError(f"Insert operation failed: {e}")
 
     def find(self, query: Dict[str, Any]) -> List[Dict[str, Any]]:
+        """Find documents in the collection matching the given query.
+
+        Args:
+            query (Dict[str, Any]): The query to filter documents.
+
+        Returns:
+            List[Dict[str, Any]]: List of matching documents.
+
+        Raises:
+            KiteDBError: If the find operation fails.
+        """
         with self.lock:
             try:
                 results = []
@@ -120,6 +162,20 @@ class Collection:
     def update(
         self, query: Dict[str, Any], updates: Any, apply_transaction: bool = False
     ) -> Any:
+        """Update documents in the collection that match the query.
+
+        Args:
+            query (Dict[str, Any]): The query to select documents to update.
+            updates (Any): A single update or list of updates to apply.
+            apply_transaction (bool): If True, applies the update directly, bypassing transaction logging.
+
+        Returns:
+            Any: Number of updated documents or "logged" if transaction is active.
+
+        Raises:
+            ValidationError: If an update is not a dictionary or fails schema validation.
+            KiteDBError: If the update operation fails.
+        """
         with self.lock:
             update_list = updates if isinstance(updates, list) else [updates]
             for update in update_list:
@@ -165,6 +221,18 @@ class Collection:
                 raise KiteDBError(f"Update operation failed: {e}")
 
     def delete(self, query: Dict[str, Any], apply_transaction: bool = False) -> Any:
+        """Delete documents from the collection that match the query.
+
+        Args:
+            query (Dict[str, Any]): The query to select documents to delete.
+            apply_transaction (bool): If True, applies the delete directly, bypassing transaction logging.
+
+        Returns:
+            Any: Number of deleted documents or "logged" if transaction is active.
+
+        Raises:
+            KiteDBError: If the delete operation fails.
+        """
         with self.lock:
             try:
                 if (
@@ -199,4 +267,13 @@ class Collection:
                 raise KiteDBError(f"Delete operation failed: {e}")
 
     def _match(self, doc: Dict[str, Any], query: Dict[str, Any]) -> bool:
+        """Check if a document matches the given query.
+
+        Args:
+            doc (Dict[str, Any]): The document to check.
+            query (Dict[str, Any]): The query to match against.
+
+        Returns:
+            bool: True if the document matches the query, False otherwise.
+        """
         return QueryParser.match(doc, query)

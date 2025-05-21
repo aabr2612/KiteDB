@@ -20,6 +20,7 @@ class Database:
         self._load()
 
     def _load(self):
+        """Loads database data from storage and initializes collections and indexes"""
         try:
             data = self.storage.load()
             self.collections = data.get("collections", {})
@@ -35,6 +36,7 @@ class Database:
             raise KiteDBError(f"Failed to load database: {e}")
 
     def save(self):
+        """Saves the current state of collections and schemas to storage."""
         try:
             self.storage.save(
                 {"collections": self.collections, "schemas": self.schemas}
@@ -45,6 +47,7 @@ class Database:
             raise KiteDBError(f"Failed to save database: {e}")
 
     def create_collection(self, name: str, schema: dict = None):
+        """Creates a new collection with an optional schema, validating the name."""
         if not re.match(r"^[a-zA-Z0-9_-]+$", name):
             raise KiteDBError(
                 "Collection name must contain only letters, numbers, underscores, or hyphens"
@@ -59,6 +62,7 @@ class Database:
         logger.info(f"Collection '{name}' created in '{self.name}'")
 
     def drop_collection(self, name: str):
+        """Drops a specified collection, logging the action if a transaction is active."""
         if name not in self.collections:
             raise KiteDBError(f"Collection '{name}' not found")
         with self._lock:
@@ -75,11 +79,13 @@ class Database:
             logger.info(f"Collection '{name}' dropped from '{self.name}'")
 
     def get_collection(self, name: str) -> Collection:
+        """Retrieves a collection object by name for further operations."""
         if name not in self.collections:
             raise KiteDBError(f"Collection '{name}' not found")
         return Collection(self, name)
 
     def begin_transaction(self):
+        """Initiates a new transaction, ensuring no existing transaction is active."""
         with self._lock:
             if self.transaction and self.transaction.active:
                 raise KiteDBError("Transaction already active")

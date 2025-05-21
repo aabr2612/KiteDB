@@ -12,6 +12,7 @@ class Transaction:
         self.ops: List[Dict] = []
 
     def begin(self):
+        """Initiates a new transaction, ensuring no existing transaction is active"""
         with self.lock:
             if self.active:
                 raise TransactionError("Transaction already active")
@@ -20,6 +21,7 @@ class Transaction:
             logger.info("Transaction begun")
 
     def log(self, op: Dict):
+        """Logs an operation to the transaction's operation list"""
         with self.lock:
             if not self.active:
                 raise TransactionError("No active transaction")
@@ -27,6 +29,7 @@ class Transaction:
             logger.debug(f"Logged operation: {op}")
 
     def commit(self) -> None:
+        """Commits all logged operations to the database and clears the transaction"""
         with self.lock:
             if not self.active:
                 raise TransactionError("No active transaction")
@@ -55,6 +58,7 @@ class Transaction:
                 raise TransactionError(f"Commit failed: {e}")
 
     def rollback(self):
+        """Reverts the transaction by clearing operations and resetting active state"""
         with self.lock:
             if not self.active:
                 logger.warning("Rollback called on inactive transaction")

@@ -25,10 +25,12 @@ class Config:
     }
 
     def __init__(self, config_file: str = "config.yaml"):
+        """Initialize the Config class with default settings and load from a YAML file."""
         self.config = self.DEFAULT_CONFIG
         self.load_config(config_file)
 
     def load_config(self, config_file: str) -> None:
+        """Load and merge configuration from a YAML file into the default config."""
         try:
             if os.path.exists(config_file):
                 with open(config_file, "r") as f:
@@ -44,6 +46,7 @@ class Config:
             raise ValueError(f"Invalid configuration: {e}")
 
     def _merge_config(self, default: Dict, user: Dict) -> None:
+        """Recursively merge user configuration into the default configuration."""
         for key, value in user.items():
             if (
                 key in default
@@ -55,6 +58,7 @@ class Config:
                 default[key] = value
 
     def get(self, key: str, default: Any = None) -> Any:
+        """Retrieve a configuration value by key, supporting nested keys with dot notation."""
         keys = key.split(".")
         value = self.config
         try:

@@ -108,12 +108,14 @@ For further assistance, contact the KiteDB support team or check the documentati
 
 class KiteDBConsole:
     def __init__(self):
+        """Initialize the KiteDB console with default settings and user credentials."""
         self.current_db = None
         self.running = True
         self.authenticated = False
         self.users = {"admin": "password123"}
 
     def run(self):
+        """Run the KiteDB console, handling user authentication and command input loop."""
         print("Welcome to KiteDB v2.0")
         while self.running:
             if not self.authenticated:
@@ -140,6 +142,7 @@ class KiteDBConsole:
                 logger.error(f"Console error: {e}")
 
     def handle_login(self):
+        """Authenticate a user by prompting for username and password."""
         username = input("Username: ").strip()
         password = getpass.getpass("Password: ")
         if username in self.users and self.users[username] == password:
@@ -151,6 +154,11 @@ class KiteDBConsole:
             logger.warning(f"Failed login attempt for '{username}'")
 
     def handle_command(self, cmd: str):
+        """Parse and execute a database command or delegate to collection operations."""
+        # Check for empty or whitespace-only commands to prevent unnecessary processing
+        if not cmd or cmd.isspace():
+            print("Error: Empty command")
+            return
         parts = cmd.split(maxsplit=1)
         command = parts[0].lower()
         arg = parts[1] if len(parts) > 1 else ""
@@ -160,6 +168,7 @@ class KiteDBConsole:
             self.handle_collection_operation(cmd)
 
     def handle_use(self, arg: str):
+        """Switch to a specified database, creating it if it doesn't exist."""
         db_name = arg.strip()
         if not db_name:
             print("Usage: use <database_name>")
@@ -175,6 +184,7 @@ class KiteDBConsole:
             logger.error(f"Use database failed: {e}")
 
     def handle_list(self, arg: str):
+        """List all available databases in the storage root directory."""
         try:
             databases = []
             data_root = config.get("storage.data_root")
@@ -194,6 +204,7 @@ class KiteDBConsole:
             logger.error(f"Error listing databases: {e}")
 
     def handle_create(self, arg: str):
+        """Create a new collection in the current database with an optional schema."""
         if not self.current_db:
             print("Select a database first: use <name>")
             return
@@ -218,6 +229,7 @@ class KiteDBConsole:
             logger.error(f"Invalid schema JSON: {e}")
 
     def handle_delete(self, arg: str):
+        """Delete a specified collection from the current database."""
         if not self.current_db:
             print("Select a database first: use <name>")
             return
@@ -239,6 +251,7 @@ class KiteDBConsole:
             logger.error(f"Delete collection failed: {e}")
 
     def handle_begin(self, arg: str):
+        """Start a new transaction for atomic operations in the current database."""
         if not self.current_db:
             print("Select a database first: use <name>")
             return
@@ -251,6 +264,7 @@ class KiteDBConsole:
             logger.error(f"Begin transaction failed: {e}")
 
     def handle_commit(self, arg: str):
+        """Commit the active transaction in the current database."""
         if not self.current_db:
             print("Select a database first: use <name>")
             return
@@ -266,6 +280,7 @@ class KiteDBConsole:
             logger.error(f"Commit transaction failed: {e}")
 
     def handle_rollback(self, arg: str):
+        """Roll back the active transaction in the current database."""
         if not self.current_db:
             print("Select a database first: use <name>")
             return
@@ -281,14 +296,17 @@ class KiteDBConsole:
             logger.error(f"Rollback transaction failed: {e}")
 
     def handle_exit(self, arg: str):
+        """Exit the KiteDB console, terminating the session."""
         self.running = False
         print("Exiting KiteDB...")
         logger.info("Console exited")
 
     def handle_help(self, arg: str):
+        """Display the help message with available commands and usage details."""
         print(HELP_MESSAGE)
 
     def handle_collection_operation(self, cmd: str):
+        """Handle collection-specific operations like add, find, update, or delete."""
         if not self.current_db:
             print("Select a database first: use <name>")
             return
@@ -365,3 +383,4 @@ class KiteDBConsole:
 if __name__ == "__main__":
     console = KiteDBConsole()
     console.run()
+    
