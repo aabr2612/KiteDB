@@ -11,7 +11,7 @@ class KiteDBClient {
   }
 
   // Connect to KiteDB server and authenticate
-  async connect(username = "ali", password = "ali", dbName = "e-commerce") {
+  async connect(username = "admin", password = "admin", dbName = "e-commerce") {
     console.log(`Attempting to connect to KiteDB at ${this.host}:${this.port}`);
     this.client = new net.Socket();
 
@@ -142,7 +142,7 @@ const kiteDBClient = new KiteDBClient();
 const connectDB = async () => {
   console.log("Starting KiteDB connection process");
   try {
-    await kiteDBClient.connect("ali", "ali", "e-commerce");
+    await kiteDBClient.connect("admin", "admin", "e-commerce");
     console.log("KiteDB connection established");
   } catch (error) {
     console.error("Failed to connect to KiteDB:", error.message);
