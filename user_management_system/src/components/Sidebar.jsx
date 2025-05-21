@@ -1,4 +1,3 @@
-import React from 'react'
 import { NavLink } from 'react-router-dom'
 
 const Sidebar = ({ isOpen, toggleSidebar }) => {
@@ -16,8 +15,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         <NavLink
           to="/add"
           className={({ isActive }) =>
-            `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              isActive ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'
             }`
           }
           onClick={toggleSidebar}
@@ -30,8 +28,7 @@ const Sidebar = ({ isOpen, toggleSidebar }) => {
         <NavLink
           to="/list"
           className={({ isActive }) =>
-            `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-              isActive ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'
+            `flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive ? 'bg-blue-100 text-blue-700 font-semibold' : 'hover:bg-gray-100'
             }`
           }
           onClick={toggleSidebar}
