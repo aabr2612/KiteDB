@@ -14,10 +14,14 @@ const List = () => {
       if (response.data.success) {
         setUsers(response.data.users)
       } else {
-        toast.error(response.data.message, { position: 'top-right' })
+        const msg =
+          error.response?.data?.message || 'Something went wrong!'
+        toast.error(msg, { position: 'top-right' })
       }
     } catch (error) {
-      toast.error(error.message, { position: 'top-right' })
+      const msg =
+        error.response?.data?.message || 'Something went wrong!'
+      toast.error(msg, { position: 'top-right' })
     }
   }
 
@@ -50,7 +54,7 @@ const List = () => {
             <div className="hidden md:grid grid-cols-[1fr_1fr_1fr_1fr_1fr_100px] gap-2 p-3 bg-gray-50 text-sm font-semibold text-gray-700 border-b">
               <span>Name</span>
               <span>Username</span>
-              <span>street</span>
+              <span>Street</span>
               <span>City</span>
               <span>Country</span>
               <span>Actions</span>

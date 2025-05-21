@@ -23,10 +23,14 @@ const Update = () => {
       if (response.data.success) {
         setUser(response.data.user)
       } else {
-        toast.error(response.data.message, { position: 'top-right' })
+        const msg =
+          error.response?.data?.message || 'Something went wrong!'
+        toast.error(msg, { position: 'top-right' })
       }
     } catch (error) {
-      toast.error(error.message, { position: 'top-right' })
+      const msg =
+        error.response?.data?.message || 'Something went wrong!'
+      toast.error(msg, { position: 'top-right' })
     }
   }
 
@@ -56,7 +60,7 @@ const Update = () => {
 
   return (
     <div className="bg-white p-6 rounded-lg shadow-md max-w-2xl mx-auto">
-      <h2 className="text-xl font-semibold text-gray-800 mb-4">Update User</h2>
+      <h2 className="text-xl font-extrabold text-gray-800 mb-4 text-center">Update User</h2>
       <form onSubmit={onSubmitHandler} className="flex flex-col gap-4">
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Name</label>

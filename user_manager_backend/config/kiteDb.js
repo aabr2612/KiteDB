@@ -53,7 +53,7 @@ class KiteDBClient {
       console.log(`Successfully switched to database: ${dbName}`);
 
       const createResponse = await this.sendCommand(
-        `create user`,
+        `create users`,
         5000
       ).catch((err) => {
         console.log("Users collection already exists or creation failed:", err.message);

@@ -6,20 +6,17 @@ const addUser = async (req, res) => {
   try {
     console.log("Adding user");
     const userData = req.body;
-    console.log(userData);
     validateUser(userData);
 
     // Check if user already exists
     const findResponse = await kiteDBClient.sendCommand(
       `users.find{"username": {"$eq": "${userData.username}"}}`
     );
-    console.log("User find response:");
-    console.log(findResponse);
     if (findResponse.success && findResponse.data && findResponse.data.length > 0) {
-      return res.status(400).json({ success: false, message: "Username already exists" });
+      console.log("user already exists");
+      return res.status(400).json({ success: false, message: "Username already exists!" });
     }
 
-    console.log(userData)
     // Insert user
     const insertResponse = await kiteDBClient.sendCommand(
       `users.add{${JSON.stringify(userData)}}`
@@ -76,7 +73,7 @@ const updateUser = async (req, res) => {
 
     // Update user
     const updateResponse = await kiteDBClient.sendCommand(
-      `users.update{"username": "${username}", "${name}"}`
+      `users.update{"username": "${username}", "name":"${updateData.name}", "street":"${updateData.street}", "city":"${updateData.city}", "country":"${updateData.country}"}` // Adjust this line to match your update command
     );
     if (!updateResponse.success) {
       return res.status(500).json({ success: false, message: updateResponse.message });

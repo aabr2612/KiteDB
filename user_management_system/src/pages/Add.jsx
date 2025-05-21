@@ -34,10 +34,14 @@ const Add = () => {
         })
         navigate('/list')
       } else {
-        toast.error(response.data.message, { position: 'top-right' })
+        const msg =
+          error.response?.data?.message || 'Something went wrong!'
+        toast.error(msg, { position: 'top-right' })
       }
     } catch (error) {
-      toast.error(error.message, { position: 'top-right' })
+      const msg =
+        error.response?.data?.message || 'Something went wrong!'
+      toast.error(msg, { position: 'top-right' })
     }
   }
 
