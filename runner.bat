@@ -1,37 +1,16 @@
 @echo off
-:main_menu
 cls
 echo Welcome to Kite Databases!
-echo     Please choose a database to use:
-echo          1. NO SQL based json database
-echo          2. Graph database
-echo          3. Exit
-set /p choice=Enter your choice (1-3): 
+echo     Launching all database components...
 
-if "%choice%"=="1" (
-    echo Starting Json database...
-    cd kitedb_nosql_json
-    python .\main.py
-    if errorlevel 1 (
-        echo Error: Failed to run Python project. Check the path or Python installation.
-        pause
-    )
-    cd ..
-) else if "%choice%"=="2" (
-    echo Starting Graph database...
-    cd kitedb_graphdb
-    go run cmd/repl/main.go
-    if errorlevel 1 (
-        echo Error: Failed to run Go project. Check the path or Go installation.
-        pause
-    )
-    cd ..
-) else if "%choice%"=="3" (
-    echo Exiting...
-    exit /b 0
-) else (
-    echo Invalid choice! Please select 1, 2, or 3.
-    pause
-)
+:: Start JSON-based NoSQL database (Python) in new terminal
+start "KiteDB NoSQL JSON" cmd /k "cd kitedb_nosql_json && python server.py"
 
-goto main_menu
+:: Start Graph database (Go) in new terminal
+start "User manager" cmd /k "cd user_management_system && npm run dev"
+
+:: Start third database or any other service (example)
+start "Backend" cmd /k "cd user_manager_backend && npm run server"
+
+echo All services started in separate terminals.
+pause
