@@ -24,15 +24,15 @@ class KiteDBRequestHandler(socketserver.BaseRequestHandler):
         super().__init__(request, client_address, server)
 
     def load_users(self):
-        """Load users from users.json or return empty dict if file doesn't exist."""
-        print(f"Loading users from {self.users_file}")
+        """Load users from users.json or create default if file doesn't exist."""
+        print(os.path)
         if os.path.exists(self.users_file):
             with open(self.users_file, "r") as f:
-                users = json.load(f)
-                print(f"Loaded users: {users}")
-                return users
-        print("Users file does not exist, returning empty dict")
-        return {}
+                return json.load(f)
+        default_users = {"admin": bcrypt.hashpw("admin".encode('utf-8'), bcrypt.gensalt()).decode('utf-8')}
+        with open(self.users_file, "w") as f:
+            json.dump(default_users, f, indent=2)
+        return default_users
 
     def load_acl(self):
         """Load ACL from acl.json or create default if file doesn't exist."""
