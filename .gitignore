@@ -6,3 +6,6 @@ db/
 testing.py
 server.py
 tempCodeRunnerFile.py
+/kitedb_nosql_json/venv/*
+/kitedb_nosql_json/acl.json
+/kitedb_nosql_json/users.json
