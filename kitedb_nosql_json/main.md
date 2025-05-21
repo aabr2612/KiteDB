@@ -1,4 +1,3 @@
-```python
 import os
 import json
 import getpass
@@ -30,7 +29,7 @@ General Commands
 - help                              Display this help message.
 - adduser <username> <password>     Add a new user.
 - removeuser <username>             Remove an existing user.
-- setperm <username> <db_name> <coll_name> <perm1> [perm2 ...]  Set permissions (e.g., read, write, delete).
+- setperm <username> <db_name> <coll_name> <perm1> [perm2 ...]  Set permissions (e.g., read, write, delete). Use '*' for coll_name to apply to all collections in the database.
 - listperms [username]              List permissions for a user or all users.
 
 Collection Operations
@@ -41,6 +40,7 @@ Parameters must be valid JSON objects or arrays, enclosed in curly braces {}.
 1. add{<document> | [<document>, ...]}
    - Add one or more documents to a collection.
    - Example: users.add{{"name": "Alice", "age": 25}}
+   - Example: users.add{[{"name": "Alice"}, {"name": "Bob"}]}
 2. find{<query>}
    - Find documents matching the query.
    - Example: users.find{{"name": "Alice"}}
@@ -67,7 +67,6 @@ class KiteDBConsole:
         self.users_file = "users.json"
         self.acl_file = "acl.json"
         self.users = self.load_users()
-        self.acl = self.load_acl()
 
     def load_users(self):
         """Load users from users.json or create default if file doesn't exist."""
@@ -119,6 +118,8 @@ class KiteDBConsole:
 
     def has_permission(self, user: str, db_name: str, collection_name: str, operation: str) -> bool:
         """Check if the user has the required permission."""
+        # Reload ACL to ensure we have the latest permissions
+        self.acl = self.load_acl()
         if user not in self.acl:
             return False
         user_perms = self.acl[user]
@@ -365,6 +366,8 @@ class KiteDBConsole:
             print("Cannot remove current user")
             return
         del self.users[username]
+        # Reload ACL to ensure we start with the latest version
+        self.acl = self.load_acl()
         if username in self.acl:
             del self.acl[username]
         self.save_users()
@@ -383,6 +386,8 @@ class KiteDBConsole:
         if not all(perm in valid_perms for perm in permissions):
             print(f"Invalid permissions. Use: {valid_perms}")
             return
+        # Reload ACL to ensure we start with the latest version
+        self.acl = self.load_acl()
         if username not in self.acl:
             self.acl[username] = {"databases": {}}
         if db_name not in self.acl[username]["databases"]:
@@ -394,6 +399,8 @@ class KiteDBConsole:
 
     def handle_listperms(self, arg: str):
         username = arg.strip()
+        # Reload ACL to ensure we have the latest permissions
+        self.acl = self.load_acl()
         if username and username not in self.acl:
             print("User not found")
             return
@@ -502,137 +509,3 @@ if __name__ == "__main__":
     else:
         console = KiteDBConsole()
         console.run()
-```
-
-### Test the Fix
-Let’s re-run the scenario to confirm the fix works.
-
-#### 1. Run as `admin` (Terminal 1)
-- Start the console:
-  ```bash
-  python main.py
-  ```
-- Log in as `admin`:
-  ```
-  Username: admin
-  Password: 
-  Login successful
-  kiteDB [admin] > 
-  ```
-- Add user `ali` (if not already added):
-  ```
-  kiteDB [admin] > adduser ali pass123
-  User 'ali' added
-  ```
-- Set permissions (already set in `acl.json`, but confirm):
-  ```
-  kiteDB [admin] > setperm ali testdb users read write delete create
-  Permissions set for 'ali' on 'testdb.users': ['read', 'write', 'delete', 'create']
-  ```
-- List permissions:
-  ```
-  kiteDB [admin] > listperms ali
-  Permissions for 'ali':
-    testdb.users: ['read', 'write', 'delete', 'create']
-  ```
-- Leave this terminal running or exit.
-
-#### 2. Run as `ali` (Terminal 2)
-- Start a new console:
-  ```bash
-  python main.py
-  ```
-- Log in as `ali`:
-  ```
-  Username: ali
-  Password: 
-  Login successful
-  kiteDB [ali] > 
-  ```
-- Use the database:
-  ```
-  kiteDB [ali] > use testdb
-  Database path: D:\CS 2023\4th Semester\Database\kitedb_nosql_json\db\testdb
-  Switched to database 'testdb'
-  kiteDB (testdb) [ali] > 
-  ```
-- Test operations:
-  ```
-  kiteDB (testdb) [ali] > create users
-  Collection 'users' created
-  kiteDB (testdb) [ali] > begin
-  Transaction begun
-  kiteDB (testdb) [ali] > users.add{"name":"Alice","age":25}
-  Inserted document with ID: ...
-  kiteDB (testdb) [ali] > commit
-  Transaction committed
-  kiteDB (testdb) [ali] > users.find{"name":"Alice"}
-  {
-    "name": "Alice",
-    "age": 25,
-    "_id": "..."
-  }
-  kiteDB (testdb) [ali] > users.delete{"name":"Alice"}
-  Deleted 1 documents
-  ```
-
-### Expected Outcome
-- `use testdb` should now succeed for `ali` because the updated `has_permission` recognizes the `read` permission on `testdb.users`.
-- `ali` can perform all operations (`read`, `write`, `delete`, `create`) on `testdb.users` as per the ACL.
-
-### Troubleshooting
-1. **If `use testdb` Still Fails**:
-   - Double-check that `main.py` has been updated with the new `has_permission` method.
-   - Ensure `acl.json` hasn’t been modified by another process. You can delete `acl.json` and re-run the `setperm` command as `admin` to recreate it.
-   - Add debug logging to `has_permission`:
-     ```python
-     def has_permission(self, user: str, db_name: str, collection_name: str, operation: str) -> bool:
-         print(f"Checking permission for user={user}, db={db_name}, coll={collection_name}, op={operation}")
-         if user not in self.acl:
-             print("User not in ACL")
-             return False
-         user_perms = self.acl[user]
-         db_perms = user_perms.get("databases", {})
-         print(f"db_perms: {db_perms}")
-         if "*" in db_perms:
-             coll_perms = db_perms["*"].get("collections", {})
-             if "*" in coll_perms and operation in coll_perms["*"]:
-                 print("Allowed via global permissions")
-                 return True
-         db_perm = db_perms.get(db_name, {})
-         coll_perms = db_perm.get("collections", {})
-         print(f"coll_perms: {coll_perms}")
-         if operation == "read" and collection_name == "*":
-             if "*" in coll_perms and "read" in coll_perms["*"]:
-                 print("Allowed via database-wide read")
-                 return True
-             for coll, perms in coll_perms.items():
-                 if "read" in perms:
-                     print(f"Allowed via read on collection {coll}")
-                     return True
-             print("No read permission on any collection")
-             return False
-         if "*" in coll_perms and operation in coll_perms["*"]:
-             print("Allowed via collection wildcard")
-             return True
-         if collection_name in coll_perms and operation in coll_perms[collection_name]:
-             print("Allowed via specific collection permission")
-             return True
-         perm_map = {"find": "read", "add": "write", "update": "write", "delete": "delete", "create": "create"}
-         required_perm = perm_map.get(operation, operation)
-         print(f"Final check: required_perm={required_perm}")
-         result = required_perm in coll_perms.get("*", []) or required_perm in coll_perms.get(collection_name, [])
-         print(f"Result: {result}")
-         return result
-     ```
-     Run again and check the logs to see why the permission check fails.
-
-2. **Schema Validation Issues**:
-   - If `users.add` fails with `Validation error: Unexpected field`, the schema validation issue persists. Share `src/core/collection.py`, and I’ll help make schema validation optional.
-
-### Next Steps
-- Apply the updated `main.py` and re-test the scenario.
-- If issues persist, check the debug logs (if added) or share additional output.
-- Once the ACL works as expected, we can address any remaining schema validation issues or enhance the ACL further (e.g., database-level permissions, role-based access).
-
-Let me know how it goes!

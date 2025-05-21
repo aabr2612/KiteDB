@@ -30,65 +30,110 @@ users.find{}
 
 Find by single field
 
-users.find{"name":"Alice Smith"}
+users.find{{"name":"Alice Smith"}}
 
 Find by multiple fields
 
-users.find{"name":1,"age":20}
+users.find{{"name":1,"age":20}}
 
 Find with nested field
 
-users.find{"address.city":"San Francisco"}
+users.find{{"address.city":"San Francisco"}}
 
 Find with comparison operator
 
-users.find{"age":{"$gt":25}}
+users.find{{"age":{"$gt":25}}}
 
 Find with logical operator ($or)
 
-users.find{"$or":[{"name":"Bob Johnson"},{"age":{"$gte":30}}]}
+users.find{{"$or":[{"name":"Bob Johnson"},{"age":{"$gte":30}}]}}
 
 Find with logical operator ($and)
 
-users.find{"$and":[{"class":1},{"address.zip":20}]}
+users.find{{"$and":[{"class":1},{"address.zip":20}]}}
 
 Find with $not
 
-users.find{"$not":{"name":"Clara Lee"}}
+users.find{{"$not":{"name":"Clara Lee"}}}
 
 === UPDATE Commands ===
 
+Update a single field
 
-users.update{"name":"Alice Smith", "age":29,"status":"active"}
+users.update{{"name":"Alice Smith"}, {"age":29}}
 
 Update with multiple fields
 
-users.update{"name":1, "age":21,"class":2,"role":"student"}
+users.update{{"name":1}, {"age":21,"class":2,"role":"student"}}
 
 Update with nested field
 
-users.update{"name":1, "address":{zip":21,"ali":31}}
+users.update{{"name":1}, {"address":{"zip":21,"ali":31}}}
 
-users.update{"age":{"$gte":30}, "role":"senior","scores":{"math":5}}
+Update with comparison operator
+
+users.update{{"age":{"$gte":30}}, {"role":"senior","scores":{"math":5}}}
 
 === DELETE Commands ===
 
 Delete by single field
 
-users.delete{"name":"Clara Lee"}
+users.delete{{"name":"Clara Lee"}}
 
 Delete by multiple fields
 
-users.delete{"name":1,"age":21}
+users.delete{{"name":1,"age":21}}
 
 Delete with nested field
 
-users.delete{"address.city":"San Francisco"}
+users.delete{{"address.city":"San Francisco"}}
 
 Delete with logical operator
 
-users.delete{"$and":[{"class":2},{"status":"inactive"}]}
+users.delete{{"$and":[{"class":2},{"status":"inactive"}]}}
 
 Delete all documents
 
 users.delete{}
+
+=== USER MANAGEMENT Commands ===
+
+Add a new user (run as admin)
+
+adduser testuser testpass
+
+Remove a user (run as admin)
+
+removeuser testuser
+
+=== ACL MANAGEMENT Commands ===
+
+Set permissions for a user (run as admin)
+
+setperm testuser b users read write
+
+Deny access to a database (run as admin)
+
+setperm testuser b * access denied
+
+Grant access with specific permissions (run as admin)
+
+setperm testuser b * access allowed read write update
+
+List permissions for all users (run as admin)
+
+listperms
+
+List permissions for a specific user (run as admin)
+
+listperms testuser
+
+=== DATABASE CONTEXT Commands ===
+
+Switch to a database
+
+use b
+
+Exit the current database context
+
+exitdb
