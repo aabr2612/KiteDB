@@ -48,13 +48,13 @@ Parameters must be valid JSON objects or arrays, enclosed in curly braces {}.
    - Example: users.add{{"name": "Alice", "age": 25}}
 2. find{<query>}
    - Find documents matching the query.
-   - Example: users.find{{"name": "Alice"}}
+   - Example: users.find{"name": "Alice"}
 3. update{<query>,<update>}
    - Update documents matching the query.
-   - Example: users.update{{"name": "Alice"}, {"age": 26}}
+   - Example: users.update{"name": "Alice", "age": 26}
 4. delete{<query>}
    - Delete documents matching the query.
-   - Example: users.delete{{"name": "Alice"}}
+   - Example: users.delete{"name": "Alice"}
 
 Supported Query Operators
 ------------------------

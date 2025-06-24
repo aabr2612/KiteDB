@@ -1,4 +1,4 @@
-Test Commands for KiteDB QueryParser
+﻿Test Commands for KiteDB QueryParser
 
 Collection: users
 
@@ -30,67 +30,67 @@ users.find{}
 
 Find by single field
 
-users.find{{"name":"Alice Smith"}}
+users.find{"name":"Alice Smith"}
 
 Find by multiple fields
 
-users.find{{"name":1,"age":20}}
+users.find{"name":1,"age":20}
 
 Find with nested field
 
-users.find{{"address.city":"San Francisco"}}
+users.find{"address.city":"San Francisco"}
 
 Find with comparison operator
 
-users.find{{"age":{"$gt":25}}}
+users.find{"age":{"$gt":25}}
 
 Find with logical operator ($or)
 
-users.find{{"$or":[{"name":"Bob Johnson"},{"age":{"$gte":30}}]}}
+users.find{"$or":[{"name":"Bob Johnson"},{"age":{"$gte":30}}]}
 
 Find with logical operator ($and)
 
-users.find{{"$and":[{"class":1},{"address.zip":20}]}}
+users.find{"$and":[{"class":1},{"address.zip":20}]}
 
 Find with $not
 
-users.find{{"$not":{"name":"Clara Lee"}}}
+users.find{"$not":{"name":"Clara Lee"}}
 
 === UPDATE Commands ===
 
 Update a single field
 
-users.update{{"name":"Alice Smith"}, {"age":29}}
+users.update{"name":"Alice Smith", "age":29}
 
 Update with multiple fields
 
-users.update{{"name":1}, {"age":21,"class":2,"role":"student"}}
+users.update{"name":1, "age":21,"class":2,"role":"student"}
 
 Update with nested field
 
-users.update{{"name":1}, {"address":{"zip":21,"ali":31}}}
+users.update{"name":1, "address":{"zip":21,"ali":31}}
 
 Update with comparison operator
 
-users.update{{"age":{"$gte":30}}, {"role":"senior","scores":{"math":5}}}
+users.update{"age":{"$gte":30}, "role":"senior","scores":{"math":5}}
 
 === DELETE Commands ===
 
 Delete by single field
 
-users.delete{{"name":"Clara Lee"}}
+users.delete{"name":"Clara Lee"}
 
 Delete by multiple fields
 
-users.delete{{"name":1,"age":21}}
+users.delete{"name":1,"age":21}
 
 Delete with nested field
 
-users.delete{{"address.city":"San Francisco"}}
+users.delete{"address.city":"San Francisco"}
 
 Delete with logical operator
 
-users.delete{{"$and":[{"class":2},{"status":"inactive"}]}}
+users.delete{"$and":[{"class":2},{"status":"inactive"}]}
 
 Delete all documents
 

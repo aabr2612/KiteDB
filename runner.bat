@@ -5,7 +5,7 @@ echo     Launching all database components...
 
 :: Start JSON-based NoSQL database (Python) in new terminal
 echo Starting KiteDB...
-start "KiteDB NoSQL JSON" cmd /k "cd kitedb_nosql_json && python server.py"
+start "KiteDB NoSQL JSON" cmd /k "cd kitedb_nosql_json && pip install pycryptodome bcrypt && python server.py"
 timeout /t 3 /nobreak >nul
 
 :: Start Frontend (React) in new terminal
