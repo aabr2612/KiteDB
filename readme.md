@@ -37,9 +37,7 @@ KiteDB is a secure, modular NoSQL JSON database implemented in Python. Designed 
    cd kitedb
    ```
 2. Install dependencies:
-   ```bash
-   pip install pyyaml bcrypt pycryptodome
-   ```
+   - Run the runner.bat file
 3. Configure settings in `config.yaml` (optional, defaults provided):
    - `storage.data_root`: Database storage directory (default: `./db`).
    - `storage.encryption_key`: AES encryption key (default: `thisisasecretkey`).
