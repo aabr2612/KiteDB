@@ -133,7 +133,7 @@ Run tests in console mode after setting up a database (e.g., `use b`).
 - [**Mahad Saffi**](https://github.com/Mahad-Saffi) (2023-CS-59)
 - [**Abdul Rehman**](https://github.com/aabr2612) (2023-CS-73)
 
-Contributions are welcome! Submit issues or pull requests to the [GitHub repository](https://github.com/KiteDB).
+Contributions are welcome! Submit issues or pull requests to the [GitHub repository](https://github.com/aabr2612/KiteDB).
 
 ## Future Enhancements
 
